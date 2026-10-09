@@ -13,6 +13,8 @@ for k in "leg_curl hip_thrust calf adductor tbar_cs cable_row face_pull rear_fly
 WT["pullup"] = "assist"
 for k in "plyo_push pushup_pause dead_bug side_plank knee_raise ab_wheel hyperext wall_sit jump".split(): WT[k] = "bw"
 WT["bike_sprint"] = "watt"
+for k in "band_face_pull band_pull_apart band_curl band_hammer band_ohe band_pallof band_ext_rot band_adduct".split(): WT[k] = "band"
+WT["calf_step"] = "bw"
 for k in D["ex"]:
     assert k in WT, k
     D["ex"][k]["wt"] = WT[k]
@@ -102,7 +104,7 @@ def segs_for(cd):
     k, n = cd.get("kind"), cd.get("n")
     S = []
     def add(label, sec, kind, tip=""): S.append(dict(l=label, s=sec, k=kind, t=tip))
-    if k == "z2":
+    if k in ("z2", "z2home"):
         add("Зона 2", n * 60, "work", "пульс 118–135, можешь говорить фразами")
     elif k == "series":
         hard = "RPE 8 — сильно, но не на пределе" if cd.get("inten") == "8" else "максимум"

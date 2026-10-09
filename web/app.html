@@ -351,7 +351,7 @@ function latestE1rm(ex, day){ var ss = sessions(ex, day); for(var i = 0; i < ss.
 function suggest(day, it, idx){
   var sp = it.spec, row = sp.rows[idx], wt = sp.wt, step = stepFor(wt);
   var today = (rec(day.d).sets[setKey(it)] || []);
-  if(wt === "bw" || wt === "watt") return null;
+  if(wt === "bw" || wt === "watt" || wt === "band") return null;
   // внутри тренировки: правило из плана
   var prev = null; for(var j = idx - 1; j >= 0; j--){ if(today[j] && today[j].done && today[j].w != null){ prev = {st:today[j], row:sp.rows[j]}; break; } }
   if(row.kind === "back"){
@@ -413,6 +413,18 @@ function suggest(day, it, idx){
   if(allTop && (!avg || !row.rpe || avg <= row.rpe + 0.5)) return {w:rnd(W + dirA * step, step, wt), why:"в день " + last.d + " все подходы на верх диапазона — " + (wt === "assist" ? "меньше противовес" : "+" + fkg(step) + " кг")};
   if(lows >= 2 || (lows >= 1 && ds.length <= 2)) return {w:rnd(W - dirA * step, step, wt), why:"в день " + last.d + " не добрал до " + row.lo + " — " + (wt === "assist" ? "больше противовес" : "−" + fkg(step) + " кг")};
   return {w:W, why:"как в день " + last.d + ": добирай повторы до " + row.hi};
+}
+
+function bandSuggest(day, it){
+  var today = doneSets(rec(day.d).sets[setKey(it)]); var row = it.spec.rows[0] || {};
+  if(today.length && today[today.length-1].band) return {band:today[today.length-1].band, why:"как в прошлом подходе"};
+  var hs = sessions(it.ex, day.d);
+  if(!hs.length) return {band:"", why:"Впиши, какую резину взял (цвет или сопротивление) — в следующий раз подскажу."};
+  var ds = doneSets(hs[0].sets), b = (ds.filter(function(s){ return s.band; })[0] || {}).band || "";
+  var allTop = ds.length && row.hi && ds.every(function(s){ return s.r != null && s.r >= row.hi; });
+  if(!b) return {band:"", why:"В день " + hs[0].d + " резина не записана."};
+  if(allTop) return {band:b, why:"В день " + hs[0].d + " все подходы на верх диапазона — возьми резину туже или отойди дальше от крепления."};
+  return {band:b, why:"Как в день " + hs[0].d + ": добирай повторы до " + (row.hi || "") + "."};
 }
 
 function rampFor(day){
@@ -689,8 +701,8 @@ function renderDay(day){
     ] : ["Эспандер — 3 подхода на руку, легче, чем вчера.", "Движение каждые 60–90 мин. Вода около 2 л. Креатин 3–5 г."])]));
   }
   if(day.k === "C"){
-    card.appendChild(sec("После смены — зал, 40–45 мин", [h("p", {class:"small muted", text:"Без отдельной разминки: первые 3 мин зоны 2 и есть разминка. Пары «a/b» — одна станция и упражнение рядом с ней."}), exList(day)], "sec-main"));
-    card.appendChild(sec("Нет сил или спал меньше 6 ч", [h("p", {text:"Только 20 мин зоны 2 и присед у стены. Совсем плохо — прогулка 30 мин вместо зала."})]));
+    card.appendChild(sec("После смены — дома, 40–45 мин", [h("p", {class:"small muted", text:"Нужны велотренажёр, резина, стена и ступенька. Первые 3 мин на велотренажёре и есть разминка. Резину закрепи за ручку закрытой двери или дверным якорем. Пары «a/b»: подход a, сразу подход b, потом отдых."}), exList(day)], "sec-main"));
+    card.appendChild(sec("Нет сил или спал меньше 6 ч", [h("p", {text:"Только 20 мин на велотренажёре и присед у стены. Совсем плохо — прогулка 30 мин вместо тренировки."})]));
   }
   if(day.k === "R"){
     card.appendChild(sec("После смены — прогулка 20–30 мин и 15–20 мин дома", [stepsBlock(day, "home", homeSteps(day.wall)), h("p", {class:"small muted", text:"Нет сил — только дыхание, сгибатели бедра и присед у стены. Никаких интенсивных нагрузок."})], "sec-main"));
@@ -782,7 +794,7 @@ function rowTarget(sp, row){
 function exCard(day, it, idx){
   var e = EX[it.ex], sp = it.spec, r = rec(day.d), k = setKey(it);
   var arr = r.sets[k] || []; r.sets[k] = arr;
-  var wtUnit = sp.wt === "assist" ? "противовес, кг" : sp.wt === "db" ? (it.ex === "farmer" || it.ex === "suitcase" ? "кг в руке" : "кг гантель") : sp.wt === "watt" ? "ватты" : "кг";
+  var wtUnit = sp.wt === "band" ? "какая резина" : sp.wt === "assist" ? "противовес, кг" : sp.wt === "db" ? (it.ex === "farmer" || it.ex === "suitcase" ? "кг в руке" : "кг гантель") : sp.wt === "watt" ? "ватты" : "кг";
   var hasW = sp.wt !== "bw";
   var hasRpe = !!(sp.rows.some(function(x){ return x.rpe; }) || sp.main) && sp.wt !== "watt" && sp.unit === "reps";
   var timed = sp.unit === "sec";
@@ -793,6 +805,7 @@ function exCard(day, it, idx){
   else if(s0 && s0.w != null) sugg = h("div", {class:"sugg"}, [h("span", {text:"Вес сегодня: "}), h("b", {text:fkg(s0.w) + " кг"}), h("div", {class:"hint", text:s0.why})]);
   else if(s0 && s0.why) sugg = h("div", {class:"sugg"}, [h("div", {class:"hint", text:s0.why})]);
   if(sp.wt === "watt"){ var best = bestWatts(it.ex, day.d); if(best) sugg = h("div", {class:"sugg"}, [h("span", {text:"Лучшие ватты прошлых раз: "}), h("b", {text:best + " Вт"})]); }
+  if(sp.wt === "band"){ var bs = bandSuggest(day, it); sugg = h("div", {class:"sugg"}, bs.band ? [h("span", {text:"Резина сегодня: "}), h("b", {text:bs.band}), h("div", {class:"hint", text:bs.why})] : [h("div", {class:"hint", text:bs.why})]); }
   card.appendChild(h("div", {class:"ex-h"}, [h("span", {class:"lab", text:it.lab}), h("span", {class:"ex-name", text:e.name}), h("span", {class:"sets", text:it.sets})]));
   card.appendChild(h("div", {class:"ex-load", text:it.load}));
   if(it.rest) card.appendChild(h("div", {class:"ex-rest", text:"Отдых: " + it.rest}));
@@ -812,7 +825,8 @@ function setRow(day, it, idx, i, row, arr, hasW, hasRpe, timed, wtUnit){
   var sp = it.spec, st = arr[i] || {}, lbl = rowLabel(row, i, sp.rows.length);
   var sug = hasW && sp.wt !== "watt" ? suggest(day, it, i) : null;
   var wIn = null, rIn = null, rpeSel = null;
-  if(hasW){ wIn = h("input", {type:"text", inputmode:"decimal", placeholder:sp.wt === "watt" ? "Вт" : "кг", "aria-label":wtUnit}); wIn.value = st.w != null ? fkg(st.w) : (sug && sug.w != null ? fkg(sug.w) : ""); }
+  if(hasW && sp.wt === "band"){ wIn = h("input", {type:"text", placeholder:"резина", "aria-label":wtUnit}); wIn.value = st.band || bandSuggest(day, it).band || ""; }
+  else if(hasW){ wIn = h("input", {type:"text", inputmode:"decimal", placeholder:sp.wt === "watt" ? "Вт" : "кг", "aria-label":wtUnit}); wIn.value = st.w != null ? fkg(st.w) : (sug && sug.w != null ? fkg(sug.w) : ""); }
   var fixed = row.lo != null && row.lo === row.hi;
   rIn = h("input", {type:"text", inputmode:"numeric", placeholder:timed ? "с" : (row.kind === "amrap" ? "повт." : (row.lo != null ? (fixed ? String(row.hi) : row.lo + "–" + row.hi) : "")), "aria-label":timed ? "секунды" : (sp.unit === "m" ? "метры" : "повторы")});
   rIn.value = st.r != null ? String(st.r) : (fixed && !timed ? String(row.hi) : (timed && row.hi ? String(row.hi) : ""));
@@ -833,21 +847,22 @@ function setRow(day, it, idx, i, row, arr, hasW, hasRpe, timed, wtUnit){
     }}));
   } else kids.push(rIn);
   if(rpeSel) kids.push(rpeSel);
-  [wIn, rIn, rpeSel].forEach(function(inp){ if(!inp) return; inp.addEventListener("change", function(){ var cur = arr[i]; if(!cur || !cur.done) return; if(inp === wIn) cur.w = pnum(wIn.value); if(inp === rIn) cur.r = pnum(rIn.value); if(inp === rpeSel) cur.rpe = pnum(rpeSel.value); save(key(day.d)); }); });
+  [wIn, rIn, rpeSel].forEach(function(inp){ if(!inp) return; inp.addEventListener("change", function(){ var cur = arr[i]; if(!cur || !cur.done) return; if(inp === wIn){ if(sp.wt === "band") cur.band = wIn.value.trim(); else cur.w = pnum(wIn.value); } if(inp === rIn) cur.r = pnum(rIn.value); if(inp === rpeSel) cur.rpe = pnum(rpeSel.value); save(key(day.d)); }); });
   ok.addEventListener("click", function(){
     if(st.done){ arr[i] = Object.assign({}, st, {done:false}); save(key(day.d)); refreshCard(day, it, idx); return; }
-    var w = wIn ? pnum(wIn.value) : null, rr = pnum(rIn.value), rp = rpeSel ? pnum(rpeSel.value) : null;
+    var band = sp.wt === "band" && wIn ? wIn.value.trim() : null;
+    var w = wIn && sp.wt !== "band" ? pnum(wIn.value) : null, rr = pnum(rIn.value), rp = rpeSel ? pnum(rpeSel.value) : null;
     if(rr == null && !timed && row.kind !== "amrap" && row.lo != null && !fixed){ rIn.focus(); toast("Впиши, сколько повторов сделал"); return; }
     if(rr == null && row.kind === "amrap"){ rIn.focus(); toast("Впиши число повторов"); return; }
-    markDone(day, it, idx, i, w, rr, rp, false);
+    markDone(day, it, idx, i, w, rr, rp, false, band);
   });
   kids.push(ok);
   return h("div", {class:cls}, kids);
 }
 
-function markDone(day, it, idx, i, w, r, rpe, fromTimer){
+function markDone(day, it, idx, i, w, r, rpe, fromTimer, band){
   var rr = rec(day.d), k = setKey(it); var arr = rr.sets[k] || (rr.sets[k] = []);
-  arr[i] = {w:w, r:r, rpe:rpe, done:true, t:Date.now()};
+  arr[i] = {w:w, r:r, rpe:rpe, done:true, t:Date.now()}; if(band) arr[i].band = band;
   save(key(day.d)); touch();
   var sp = it.spec, n = sp.rows.length;
   var partner = partnerOf(day, it);
@@ -865,7 +880,8 @@ function markDone(day, it, idx, i, w, r, rpe, fromTimer){
   }
   if(target){
     var s = suggest(day, target, tr);
-    nextTxt = EX[target.ex].name + ", " + (target.spec.rows.length > 1 ? "подход " + (tr + 1) + "/" + target.spec.rows.length : "подход") + (s && s.w != null ? " · " + fkg(s.w) + " кг" : "") + (target.spec.rows[tr] && target.spec.rows[tr].hi && target.spec.unit === "reps" ? " × " + target.spec.rows[tr].hi : "");
+    var bsg = target.spec.wt === "band" ? bandSuggest(day, target).band : null;
+    nextTxt = EX[target.ex].name + ", " + (target.spec.rows.length > 1 ? "подход " + (tr + 1) + "/" + target.spec.rows.length : "подход") + (s && s.w != null ? " · " + fkg(s.w) + " кг" : "") + (bsg ? " · " + bsg : "") + (target.spec.rows[tr] && target.spec.rows[tr].hi && target.spec.unit === "reps" ? " × " + target.spec.rows[tr].hi : "");
   } else nextTxt = "основная часть закончена";
   var rest = sp.rest || (partner && /b$/.test(it.lab) ? partner.spec.rest : 0);
   if(fromTimer || rest > 0) startRest(rest, EX[it.ex].name, nextTxt);
@@ -956,7 +972,7 @@ function lineChart(pts, unit, byIndex){
 /* ================= техника ================= */
 function renderRef(app){
   var groups = {}; Object.keys(EX).forEach(function(k){ var g = EX[k].group; (groups[g] = groups[g] || []).push(k); });
-  var order = ["Ноги","Задняя цепь","Грудь","Спина","Плечи","Руки","Кор","Хват и кор","Икры и ахилл","Таз","Мощность","Давление"];
+  var order = ["Ноги","Задняя цепь","Грудь","Спина","Плечи","Руки","Кор","Хват и кор","Икры и ахилл","Таз","Мощность","Давление","Дома: резина"];
   var panel = h("section", {class:"panel"}, [h("h2", {text:"Техника упражнений"}), h("p", {class:"muted", text:"Все упражнения программы: как делать, частая ошибка и чем заменить, если снаряд занят."})]);
   order.forEach(function(g){
     if(!groups[g]) return;
