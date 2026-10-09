@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Брюс Ли 3.0</title>
+<style>
+@font-face{font-family:"Inter";font-weight:400;src:url("fonts/Inter-Regular.otf")}
+@font-face{font-family:"Inter";font-weight:600;src:url("fonts/Inter-SemiBold.otf")}
+@font-face{font-family:"Inter";font-weight:700;src:url("fonts/Inter-Bold.otf")}
+@font-face{font-family:"Inter";font-weight:800;src:url("fonts/Inter-ExtraBold.otf")}
+@font-face{font-family:"Inter Display";font-weight:800;src:url("fonts/InterDisplay-ExtraBold.otf")}
+/* Layout: a gym logbook app. Bottom tab bar; the Day screen is a stack of interactive sections; one timer bar docks above the tabs. */
+:root{
+  --bg:#EEF0EC; --surface:#FFFFFF; --sunk:#E4E8E2; --ink:#16201B; --muted:#56635C; --line:#D3D9D1;
+  --p0:#5F7180; --p1:#1D7560; --p2:#A23E27; --p3:#9A6A0B; --p4:#3A49A3; --dl:#7E8781;
+  --ok:#1D7560; --warn:#9A6A0B; --bad:#A23E27; --timer:#16201B; --timer-ink:#EEF0EC;
+  --f-display:"Inter Display","Inter",Roboto,system-ui,sans-serif;
+  --f-body:"Inter",Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101412; --surface:#181E1B; --sunk:#141917; --ink:#E5EAE6; --muted:#9AA69F; --line:#2A332E;
+  --p0:#9DB0BF; --p1:#55C3A2; --p2:#E98466; --p3:#E2B44E; --p4:#97A4FF; --dl:#9AA39E; --ok:#55C3A2; --warn:#E2B44E; --bad:#E98466;
+  --timer:#E5EAE6; --timer-ink:#101412; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101412; --surface:#181E1B; --sunk:#141917; --ink:#E5EAE6; --muted:#9AA69F; --line:#2A332E;
+  --p0:#9DB0BF; --p1:#55C3A2; --p2:#E98466; --p3:#E2B44E; --p4:#97A4FF; --dl:#9AA39E; --ok:#55C3A2; --warn:#E2B44E; --bad:#E98466;
+  --timer:#E5EAE6; --timer-ink:#101412; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:760px;margin:0 auto;padding-inline:14px;padding-block:14px 190px}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;letter-spacing:-.01em;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:14px} .tiny{font-size:12px}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:9px;padding:9px 14px;font-weight:700;font-size:15px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.sm{padding:5px 10px;font-size:14px}
+.btn.big{width:100%;padding:13px;font-size:17px}
+.btn[disabled]{opacity:.45}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grow{flex:1;min-width:0}
+.chip{display:inline-flex;align-items:center;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;border:1px solid var(--c,var(--line));color:var(--c,var(--muted))}
+.chip.fill{background:var(--c);color:var(--bg);border-color:var(--c)}
+
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px);z-index:20}
+.tabbar button{border:0;background:none;padding:9px 2px 10px;font-size:12px;font-weight:600;color:var(--muted);display:grid;justify-items:center;gap:2px}
+.tabbar button b{font-family:var(--f-display);font-size:17px;line-height:1}
+.tabbar button[aria-current="true"]{color:var(--ink)}
+.tabbar button[aria-current="true"] b{color:var(--p1)}
+
+/* timer bar */
+.tbar{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:21;padding:0 10px 8px}
+.tbar-in{max-width:740px;margin:0 auto;background:var(--timer);color:var(--timer-ink);border-radius:14px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.tbar .tl{font-size:14px;font-weight:700;line-height:1.25}
+.tbar .tt{font-size:12.5px;opacity:.8;line-height:1.3}
+.tbar .tc{font-family:var(--f-display);font-weight:800;font-size:40px;line-height:1;font-variant-numeric:tabular-nums;grid-row:span 2;align-self:center;text-align:right}
+.tbar .tb{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.tbar .tb button{flex:1;border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;padding:6px 4px;font-size:14px;font-weight:700;min-width:0}
+.tbar.work .tbar-in{background:var(--p2);color:#fff}
+.tbar.warm .tbar-in,.tbar.easy .tbar-in{background:var(--p0);color:#fff}
+.tbar.done .tbar-in{background:var(--ok);color:#fff}
+.tbar .prog{grid-column:1 / -1;height:4px;border-radius:2px;background:rgba(127,127,127,.35);overflow:hidden}
+.tbar .prog i{display:block;height:100%;background:currentColor;width:0}
+
+/* ruler & days */
+.ruler{display:grid;grid-template-columns:repeat(20,minmax(0,1fr));gap:3px;margin-top:12px}
+.cell{border:0;padding:0;height:34px;border-radius:5px;background:var(--pc);opacity:.42;position:relative;font-size:10px;font-weight:800;color:var(--bg)}
+.cell[aria-current="true"]{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
+.cell .dlm{position:absolute;left:50%;bottom:3px;width:5px;height:5px;border-radius:50%;transform:translateX(-50%);background:var(--bg)}
+.cell.today::after{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:2px 12px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c);margin-right:5px}
+.weekhead{margin-top:14px;display:grid;gap:6px}
+.weekhead .row h2{font-size:20px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:8px}
+.dayb{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:6px 2px 5px;display:grid;justify-items:center;gap:1px;min-width:0}
+.dayb .n{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.dayb .k{font-size:10.5px;color:var(--muted);line-height:1.15;text-align:center}
+.dayb .k b{display:block;font-family:var(--f-display);font-size:15px;color:var(--pc)}
+.dayb .dt{font-size:10px;color:var(--muted)}
+.dayb[aria-current="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.dayb.done{background:var(--sunk)} .dayb.done .n::after{content:" ✓";color:var(--ok)}
+.dayb.today .n{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+
+/* day */
+.day{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.day-top{padding:16px 14px 14px;border-top:6px solid var(--pc);display:grid;gap:8px}
+.day-top .big{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.day-top .big h2{font-size:34px;line-height:1}
+.day-top h3{font-family:var(--f-body);font-weight:800;font-size:18px}
+.goal{max-width:65ch}
+.sec{border-top:1px solid var(--line);padding:14px;display:grid;gap:10px}
+.sec > h4{margin:0;font-size:12.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:800}
+details.sec > summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details.sec > summary::-webkit-details-marker{display:none}
+details.sec > summary::after{content:"+";color:var(--muted);font-weight:800}
+details.sec[open] > summary::after{content:"−"}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:5px}
+.steps{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:start;padding:8px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.step input[type=checkbox]{width:22px;height:22px;margin:2px 0 0;accent-color:var(--ok)}
+.step .sb{display:grid;gap:6px}
+.step.on .st{opacity:.55}
+.st b{font-weight:700}
+
+/* exercise */
+.group{display:grid;gap:8px;border-left:3px solid var(--pc);padding-left:9px}
+.group.single{border-left-color:transparent;padding-left:0}
+.gl{font-size:12.5px;color:var(--muted);font-weight:700}
+.ex{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:7px;background:var(--surface);min-width:0}
+.ex.next{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.ex-h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 9px;align-items:start}
+.lab{font-weight:800;font-size:13px;background:var(--sunk);border-radius:6px;padding:2px 6px;color:var(--pc);font-variant-numeric:tabular-nums}
+.ex-name{font-weight:800;line-height:1.25}
+.sets{font-weight:800;font-size:15px;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.ex-load{font-size:14px}
+.ex-rest{font-size:13px;color:var(--muted)}
+.ex-note{font-size:14px;background:var(--sunk);border-radius:8px;padding:8px 10px}
+.sugg{font-size:14px;border-left:3px solid var(--ok);padding:4px 0 4px 9px}
+.sugg b{font-size:16px}
+.ex details{font-size:14px}
+.ex details summary{cursor:pointer;color:var(--muted);font-weight:700}
+.ex details > div{display:grid;gap:6px;margin-top:6px}
+.setlist{display:grid;gap:6px}
+.set{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 62px 44px;gap:6px;align-items:center}
+.set.nowt{grid-template-columns:52px minmax(0,1fr) 62px 44px}
+.set.norpe{grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 44px}
+.set.nowt.norpe{grid-template-columns:52px minmax(0,1fr) 44px}
+.set .sl{font-size:12px;line-height:1.15;color:var(--muted);font-weight:700}
+.set .sl b{display:block;color:var(--ink);font-size:13px}
+.set input,.set select{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 6px;background:var(--bg);font-size:16px;font-variant-numeric:tabular-nums;text-align:center}
+.set select{padding:8px 2px}
+.set .ok{height:40px;border-radius:9px;border:1px solid var(--line);background:var(--bg);font-weight:800;font-size:18px}
+.set.isdone .ok{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.set.isdone input,.set.isdone select{background:var(--sunk)}
+.set .tbtn{height:40px;border-radius:9px;border:1px solid var(--ink);background:var(--surface);font-weight:800}
+.hint{font-size:12.5px;color:var(--muted)}
+.cond{border:1px solid var(--pc);border-radius:var(--r);padding:12px;display:grid;gap:8px}
+.cond .ch{display:flex;justify-content:space-between;gap:10px;font-weight:800}
+.cond ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:15px}
+.seglist{display:grid;gap:2px;max-height:220px;overflow:auto;font-size:13.5px;border-top:1px dashed var(--line);padding-top:6px}
+.seglist div{display:flex;justify-content:space-between;gap:8px;padding:2px 4px;border-radius:5px}
+.seglist div.cur{background:var(--sunk);font-weight:800}
+.seglist div.past{opacity:.45}
+.journal textarea,.field textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);resize:vertical}
+.donebtn[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.nav{display:flex;justify-content:space-between;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.startbar{display:grid;gap:8px}
+
+/* panels */
+.panel{display:grid;gap:14px}
+.panel h2{font-size:24px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
+.card h3{font-family:var(--f-body);font-size:17px;font-weight:800}
+.field{display:grid;gap:4px}
+.field label{font-size:14px;color:var(--muted);font-weight:600}
+.field input,.field select{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--bg);font-size:16px;width:100%}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;font-size:14px;min-width:280px;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{color:var(--muted);font-weight:700}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.chart{width:100%;height:auto;display:block}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.kpi{border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:2px;background:var(--surface)}
+.kpi b{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
+.ex-grid{display:grid;gap:10px}
+@media (min-width:700px){.ex-grid{grid-template-columns:1fr 1fr}}
+.toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;z-index:40;max-width:90vw}
+@media (max-width:380px){.set{grid-template-columns:44px minmax(0,1fr) minmax(0,1fr) 56px 40px;gap:4px}.dayb .k{font-size:9.5px}.ruler .cell{font-size:8.5px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="tbar" id="tbar" hidden></div>
+<nav class="tabbar" id="tabbar" aria-label="Разделы">
+  <button type="button" data-tab="day"><b>Д</b>День</button>
+  <button type="button" data-tab="progress"><b>↗</b>Прогресс</button>
+  <button type="button" data-tab="ref"><b>Т</b>Техника</button>
+  <button type="button" data-tab="profile"><b>П</b>Профиль</button>
+</nav>
+<script id="plan-data" type="application/json">/*DATA*/</script>
+<script>
+(function(){
+"use strict";
+/* ================= данные ================= */
+var DATA = JSON.parse(document.getElementById("plan-data").textContent);
+var EX = DATA.ex, DAYS = DATA.days, WEEKS = DATA.weeks, PH = DATA.phases;
+var PCOL = ["var(--p0)","var(--p1)","var(--p2)","var(--p3)","var(--p4)"];
+var NATIVE = (typeof window.Android !== "undefined" && window.Android) ? window.Android : null;
+var MAIN = {squat:1, bench:1, rdl:1, deadlift:1};
+
+/* ---------- стандартные блоки (текст плана, без изменений) ---------- */
+function LR(sec, name){ return [{l:name+" — левая сторона", s:sec, k:"work"},{l:"Смена стороны", s:5, k:"rest"},{l:name+" — правая сторона", s:sec, k:"work"}]; }
+var RITUAL = [
+  {t:"<b>Дыхание 90/90 — 2 × 5 выдохов.</b> Лёжа, стопы на стене, колени и бёдра под 90°. Слегка надави пятками в стену и подкрути таз. Вдох носом «в бока» 4 с, выдох ртом 6–8 с до конца: рёбра опускаются."},
+  {t:"<b>Дед баг — 2 × 6 на сторону.</b> 3 с на опускание руки и противоположной ноги; поясница не отрывается от пола."},
+  {t:"<b>Растяжка сгибателей бедра на колене — 2 × 40 с на сторону.</b> Сначала подкрути таз и сожми ягодицу, потом чуть подайся вперёд. Тянет спереди бедра, а не в пояснице.", segs:LR(40,"Сгибатели бедра").concat([{l:"Пауза",s:10,k:"rest"}]).concat(LR(40,"Сгибатели бедра"))},
+  {t:"<b>Ягодичный мост с подкруткой таза — 12 повторов,</b> пауза 2 с наверху."},
+  {t:"<b>Боковая планка — 2 × 20–40 с на сторону.</b>", segs:LR(30,"Боковая планка").concat([{l:"Пауза",s:15,k:"rest"}]).concat(LR(30,"Боковая планка")), tlabel:"▶ 2 × 30 с на сторону"},
+  {t:"<b>Кошка-верблюд — 8 медленных повторов.</b>"}
+];
+var COOLDOWN = [
+  {t:"3–5 мин лёгкого велотренажёра.", segs:[{l:"Лёгкий велотренажёр",s:240,k:"easy"}]},
+  {t:"Сгибатели бедра (колено на полу у скамьи, голень вверх по скамье) — 60 с на сторону.", segs:LR(60,"Сгибатели бедра")},
+  {t:"Грудные на стойке — 45 с на сторону. Широчайшие — 45 с.", segs:LR(45,"Грудные").concat([{l:"Смена",s:5,k:"rest"},{l:"Широчайшие",s:45,k:"work"}])},
+  {t:"Задняя поверхность бедра — 45 с на сторону.", segs:LR(45,"Задняя поверхность бедра")},
+  {t:"Поза ребёнка с медленным дыханием — 1 мин.", segs:[{l:"Поза ребёнка",s:60,k:"easy"}]}
+];
+function homeSteps(wall){
+  var ws = wallSegs(wall);
+  return [
+    {t:"<b>Дыхание 90/90</b> — 2 × 5 выдохов."},
+    {t:"<b>«Открытая книга»</b> — 8 на сторону: лёжа на боку, колени согнуты, разворачивай грудь и верхнюю руку к полу за спиной."},
+    {t:"<b>Растяжка сгибателей бедра</b> — 2 × 40 с на сторону.", segs:LR(40,"Сгибатели бедра").concat([{l:"Пауза",s:10,k:"rest"}]).concat(LR(40,"Сгибатели бедра"))},
+    {t:"<b>Грудные у стены</b> — 45 с. <b>Икры у стены</b> — 45 с на ногу.", segs:[{l:"Грудные у стены",s:45,k:"work"},{l:"Смена",s:5,k:"rest"}].concat(LR(45,"Икры у стены"))},
+    {t:"<b>Присед у стены — " + wall + "</b>, отдых 2 мин, ровное дыхание, колени 90–100°.", segs:ws},
+    {t:"<b>Подъёмы на носки на ступеньке</b> — 2 × 12, вниз 3 с."},
+    {t:"<b>Поза ребёнка</b> — 1 мин медленного дыхания.", segs:[{l:"Поза ребёнка",s:60,k:"easy"}]}
+  ];
+}
+function wallSegs(wall){
+  var m = /(\d+) × (\d+(?:,\d+)?) мин/.exec(wall || ""); if(!m) return null;
+  var n = +m[1], sec = Math.round(parseFloat(m[2].replace(",", ".")) * 60), out = [];
+  for(var i = 1; i <= n; i++){ out.push({l:"Присед у стены " + i + " из " + n, s:sec, k:"work", t:"ровное дыхание"}); if(i < n) out.push({l:"Отдых", s:120, k:"rest"}); }
+  return out;
+}
+
+/* ================= хранение ================= */
+var LS = "bl3-app-v2";
+var S = {profile:{start:"", bench:"", squat:"", dl:"", bw:"", stepDb:2, stepMach:2.5, sound:true, watch:"rest"}, days:{}, d0:{}, body:[]};
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+(function load(){
+  try{
+    var raw = JSON.parse(lsGet(LS) || "null");
+    if(raw){ S.profile = Object.assign(S.profile, raw.profile || {}); S.days = raw.days || {}; S.d0 = raw.d0 || {}; S.body = raw.body || []; }
+    else {
+      var old = JSON.parse(lsGet("bl3-log-v1") || "null");
+      if(old){ if(old.start) S.profile.start = old.start; Object.keys(old.log || {}).forEach(function(k){ S.days[k] = migrateDay(old.log[k]); }); }
+    }
+  }catch(e){}
+})();
+function migrateDay(b){
+  var rec = {done:!!b.done, note:b.note || "", sets:b.sets || {}, steps:b.steps || {}, cond:b.cond || {}};
+  if(b.ex && !b.sets){ var parts = []; Object.keys(b.ex).forEach(function(k){ if(b.ex[k]) parts.push(k.split(":")[0] + ": " + b.ex[k]); }); if(parts.length) rec.note = (rec.note ? rec.note + "\n" : "") + parts.join("; "); }
+  return rec;
+}
+function key(d){ return "d" + String(d).padStart(3, "0"); }
+function rec(d){ var k = key(d); if(!S.days[k]) S.days[k] = {done:false, note:"", sets:{}, steps:{}, cond:{}}; var r = S.days[k]; r.sets = r.sets || {}; r.steps = r.steps || {}; r.cond = r.cond || {}; return r; }
+function persist(){ lsSet(LS, JSON.stringify(S)); }
+
+/* облако (только в веб-версии внутри Claude) */
+var CLOUD = {db:null, uid:null, timers:{}, chains:{}};
+function save(docId){
+  persist();
+  if(!CLOUD.db) return;
+  clearTimeout(CLOUD.timers[docId]);
+  CLOUD.timers[docId] = setTimeout(function(){ delete CLOUD.timers[docId]; pushDoc(docId); }, 800);
+}
+function docBody(id){
+  if(id === "settings") return {profile:S.profile, d0:S.d0};
+  if(id === "body") return {list:S.body};
+  return S.days[id] || {};
+}
+function pushDoc(id){
+  if(!CLOUD.db) return;
+  var ref; try{ ref = CLOUD.db.collection("data/users/" + CLOUD.uid).doc(id); }catch(e){ return; }
+  var body = JSON.parse(JSON.stringify(docBody(id)));
+  CLOUD.chains[id] = (CLOUD.chains[id] || Promise.resolve()).then(function(){ return ref.set(body); }).catch(function(){});
+}
+function connectCloud(){
+  if(NATIVE || !window.claude || !window.claude.use) return;
+  Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function(r){
+    var db = r[0], user = r[1]; if(!db || !user) return;
+    return user.id().then(function(uid){
+      if(!uid) return;
+      CLOUD.db = db; CLOUD.uid = uid; var first = true;
+      db.collection("data/users/" + uid).onSnapshot(function(snap){
+        var have = {};
+        snap.docs.forEach(function(doc){
+          have[doc.id] = true; if(CLOUD.timers[doc.id]) return;
+          var b = doc.data(); if(!b) return;
+          if(doc.id === "settings"){ if(b.profile) S.profile = Object.assign(S.profile, b.profile); else if(typeof b.start === "string") S.profile.start = b.start; if(b.d0) S.d0 = b.d0; }
+          else if(doc.id === "body"){ S.body = b.list || []; }
+          else if(/^d\d{3}$/.test(doc.id)){ S.days[doc.id] = migrateDay(b); }
+        });
+        if(first){ first = false; Object.keys(S.days).forEach(function(id){ if(!have[id]) pushDoc(id); }); if(!have.settings) pushDoc("settings"); if(!have.body && S.body.length) pushDoc("body"); }
+        persist(); if(!busyTyping()) render();
+      }, function(){ CLOUD.db = null; });
+    });
+  }).catch(function(){});
+}
+function busyTyping(){ var a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT"); }
+
+/* ================= расчёт веса ================= */
+var P10 = [0,100,95.5,92.2,89.2,86.3,83.7,81.1,78.6,76.2,73.9,71.7,69.4,67.2,65,62.8,60.6,58.4,56.2,54,51.8,49.6];
+function pct(reps, rpe){
+  if(!reps) return null; rpe = rpe || 8;
+  var x = Math.max(1, Math.min(20, reps + (10 - rpe)));
+  var lo = Math.floor(x), hi = Math.ceil(x);
+  return P10[lo] + (P10[hi] - P10[lo]) * (x - lo);
+}
+function stepFor(wt){ return wt === "bar" ? 2.5 : wt === "db" ? (+S.profile.stepDb || 2) : wt === "assist" ? 2.5 : (+S.profile.stepMach || 2.5); }
+function rnd(x, step, wt){ if(x == null || !isFinite(x)) return null; var v = Math.round(x / step) * step; if(wt === "bar") v = Math.max(20, v); if(wt === "assist") v = Math.max(0, v); return Math.round(v * 100) / 100; }
+function fkg(x){ if(x == null || x === "") return ""; return String(Math.round(x * 100) / 100).replace(".", ","); }
+function pnum(v){ if(v === "" || v == null) return null; var x = parseFloat(String(v).replace(",", ".")); return isFinite(x) ? x : null; }
+function setKey(it){ return it.lab + ":" + it.ex; }
+function doneSets(arr){ return (arr || []).filter(function(s){ return s && s.done; }); }
+
+function sessions(ex, beforeDay){
+  var out = [];
+  for(var d = beforeDay - 1; d >= 1; d--){
+    var r = S.days[key(d)]; if(!r || !r.sets) continue;
+    var items = DAYS[d-1].items || [];
+    for(var i = 0; i < items.length; i++){
+      var it = items[i]; if(it.cond || it.ex !== ex) continue;
+      var sets = doneSets(r.sets[setKey(it)]);
+      if(sets.length) out.push({d:d, it:it, sets:r.sets[setKey(it)] || []});
+    }
+    if(out.length >= 6) break;
+  }
+  return out;
+}
+function e1rmOf(sess){
+  var best = 0;
+  (sess.sets || []).forEach(function(st, i){
+    if(!st || !st.done || !st.w || !st.r) return;
+    var row = (sess.it.spec.rows[i]) || {};
+    var rp = st.rpe || row.rpe || (row.kind === "back" ? 7 : 8);
+    var e = st.w / (pct(st.r, rp) / 100);
+    if(e > best) best = e;
+  });
+  return best || null;
+}
+function profileMax(ex){ var p = S.profile; var v = ex === "bench" ? p.bench : ex === "squat" ? p.squat : ex === "deadlift" ? p.dl : null; return pnum(v); }
+function latestE1rm(ex, day){ var ss = sessions(ex, day); for(var i = 0; i < ss.length; i++){ var e = e1rmOf(ss[i]); if(e) return {e:e, s:ss[i]}; } var pm = profileMax(ex); return pm ? {e:pm, s:null} : null; }
+
+/* подсказка веса для конкретного подхода */
+function suggest(day, it, idx){
+  var sp = it.spec, row = sp.rows[idx], wt = sp.wt, step = stepFor(wt);
+  var today = (rec(day.d).sets[setKey(it)] || []);
+  if(wt === "bw" || wt === "watt") return null;
+  // внутри тренировки: правило из плана
+  var prev = null; for(var j = idx - 1; j >= 0; j--){ if(today[j] && today[j].done && today[j].w != null){ prev = {st:today[j], row:sp.rows[j]}; break; } }
+  if(row.kind === "back"){
+    var topW = today[0] && today[0].done && today[0].w ? today[0].w : null;
+    var base = topW || (suggest(day, it, 0) || {}).w;
+    if(prev && prev.row.kind === "back") return {w:prev.st.w, why:"как прошлый подход добивки"};
+    if(base) return {w:rnd(base * (1 - (row.drop || 10) / 100), step, wt), why:"топ " + fkg(base) + " кг − " + (row.drop || 10) + "%"};
+  }
+  if(prev && row.kind === "work"){
+    var w = prev.st.w, why = "как прошлый подход";
+    if(sp.main && row.rpe && prev.st.rpe){
+      var diff = row.rpe - prev.st.rpe;
+      if(diff >= 2){ w = rnd(w * 1.05, step, wt); if(w <= prev.st.w) w = prev.st.w + step; why = "прошлый подход был легче цели на 2+ — +5%"; }
+      else if(diff >= 1){ w = rnd(w * 1.025, step, wt); if(w <= prev.st.w) w = prev.st.w + step; why = "прошлый подход был легче цели — +2,5%"; }
+      else if(diff <= -1){ w = rnd(w * 0.95, step, wt); why = "прошлый подход тяжелее цели — −5%"; }
+    } else if(!sp.main && prev.st.r != null){
+      var dir = wt === "assist" ? -1 : 1;
+      if(row.lo && prev.st.r < row.lo){ w = rnd(w - dir * step, step, wt); why = "в прошлом подходе меньше " + row.lo + " — легче"; }
+      else if(row.hi && prev.st.r >= row.hi + 3){ w = rnd(w + dir * step, step, wt); why = "в прошлом подходе сильно больше " + row.hi + " — тяжелее"; }
+    }
+    return {w:w, why:why};
+  }
+  // основные упражнения
+  if(sp.main){
+    if(row.pct){ var bm = pnum(S.profile.bench); return bm ? {w:rnd(bm * row.pct / 100, step, wt), why:row.pct + "% от максимума " + fkg(bm) + " кг"} : {w:null, why:"укажи максимум в жиме в профиле"}; }
+    if(sp.deload){
+      var ss = sessions(it.ex, day.d);
+      if(ss.length){ var mx = 0; doneSets(ss[0].sets).forEach(function(s){ if(s.w > mx) mx = s.w; }); if(mx) return {w:rnd(mx * 0.9, step, wt), why:"рабочий вес дня " + ss[0].d + " (" + fkg(mx) + " кг) − 10%"}; }
+      return {w:null, why:"нет записей прошлого цикла — RPE 6"};
+    }
+    var L = latestE1rm(it.ex, day.d);
+    if(!L && it.ex === "deadlift"){ var R = latestE1rm("rdl", day.d); if(R) L = {e:R.e * 1.15, s:null, rough:true}; }
+    if(!L) return {w:null, why:"первый раз — подбери по ориентиру и RPE, дальше посчитаю сам"};
+    var rpeT = row.rpe || 8, reps = row.hi || row.lo;
+    var w2 = rnd(L.e * pct(reps, rpeT) / 100, step, wt);
+    var src = L.s ? "по дню " + L.s.d : (L.rough ? "примерно, по румынской тяге" : "по максимуму из профиля");
+    return {w:w2, why:"оценка максимума " + fkg(Math.round(L.e)) + " кг (" + src + ") → " + reps + " повт. на RPE " + fkg(rpeT), e1:L.e};
+  }
+  // подсобка: двойная прогрессия
+  var hs = sessions(it.ex, day.d);
+  if(!hs.length) return {w:null, why:"введи вес — со следующего раза подберу сам"};
+  var last = hs[0], ds = doneSets(last.sets), lrow = last.it.spec.rows[0] || {};
+  var W = ds[0].w; if(W == null) return {w:null, why:""};
+  var dirA = wt === "assist" ? -1 : 1;
+  if(sp.deload) return {w:rnd(wt === "assist" ? W + 5 : W * 0.9, step, wt), why:"разгрузка: легче прошлого раза (" + fkg(W) + " кг)"};
+  var sameRange = lrow.lo === row.lo && lrow.hi === row.hi;
+  if(!sameRange && row.rpe && wt !== "assist"){
+    var e = e1rmOf(last);
+    if(e){ var rr = row.lo || row.hi; return {w:rnd(e * pct(rr, row.rpe) / 100, step, wt), why:"новый диапазон: пересчёт с " + fkg(W) + " кг (день " + last.d + ")"}; }
+  }
+  var rpes = ds.map(function(s){ return s.rpe; }).filter(Boolean), avg = rpes.length ? rpes.reduce(function(a,b){return a+b;}, 0) / rpes.length : null;
+  var allTop = ds.length >= Math.min(2, (last.it.spec.rows || []).length) && ds.every(function(s){ return s.r != null && s.r >= (row.hi || 0); });
+  var lows = ds.filter(function(s){ return s.r != null && row.lo && s.r < row.lo; }).length;
+  if(row.lo === row.hi && row.rpe && avg){
+    if(avg <= row.rpe - 1) return {w:rnd(W + dirA * step, step, wt), why:"в день " + last.d + " было легко (RPE " + fkg(Math.round(avg*10)/10) + ") — шаг вверх"};
+    if(avg >= row.rpe + 1) return {w:rnd(W - dirA * step, step, wt), why:"в день " + last.d + " было тяжело — шаг вниз"};
+    return {w:W, why:"как в день " + last.d};
+  }
+  if(allTop && (!avg || !row.rpe || avg <= row.rpe + 0.5)) return {w:rnd(W + dirA * step, step, wt), why:"в день " + last.d + " все подходы на верх диапазона — " + (wt === "assist" ? "меньше противовес" : "+" + fkg(step) + " кг")};
+  if(lows >= 2 || (lows >= 1 && ds.length <= 2)) return {w:rnd(W - dirA * step, step, wt), why:"в день " + last.d + " не добрал до " + row.lo + " — " + (wt === "assist" ? "больше противовес" : "−" + fkg(step) + " кг")};
+  return {w:W, why:"как в день " + last.d + ": добирай повторы до " + row.hi};
+}
+
+function rampFor(day){
+  var items = day.items || [];
+  for(var i = 0; i < items.length; i++){
+    var it = items[i]; if(it.cond || !it.spec || it.spec.wt !== "bar") continue;
+    var s = suggest(day, it, 0); if(!s || !s.w) return null;
+    var w = s.w, r = function(x){ return fkg(Math.max(20, Math.round(x / 2.5) * 2.5)); };
+    return EX[it.ex].name + ": гриф × 8 → " + r(w * .5) + " × 5 → " + r(w * .7) + " × 3 → " + r(w * .85) + " × 1–2, затем рабочие " + fkg(w) + " кг";
+  }
+  return null;
+}
+
+/* ================= звук, вибрация, сигналы на часы ================= */
+var AC = null;
+function audio(){ if(!AC){ try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ AC = null; } } if(AC && AC.state === "suspended") AC.resume(); return AC; }
+document.addEventListener("pointerdown", function(){ audio(); }, {once:false, passive:true});
+function beep(freq, ms, when){
+  if(!S.profile.sound) return; var ac = audio(); if(!ac) return;
+  var t = ac.currentTime + (when || 0), o = ac.createOscillator(), g = ac.createGain();
+  o.type = "sine"; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + ms / 1000 + 0.05);
+}
+function signalEnd(){ beep(880, 180, 0); beep(880, 180, .28); beep(1320, 420, .56); vib(600); }
+function signalTick(){ beep(660, 90, 0); }
+function signalStart(){ beep(1320, 300, 0); vib(300); }
+function vib(ms){ try{ if(NATIVE) NATIVE.vibrate(ms); else if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+function watchOn(kind){ return NATIVE && (S.profile.watch === "all" || (S.profile.watch === "rest" && kind === "rest")); }
+function alertAt(id, at, title, text){ try{ NATIVE.scheduleAlert(id, at, title, text); }catch(e){} }
+function alertCancel(id){ try{ if(NATIVE) NATIVE.cancelAlert(id); }catch(e){} }
+var wakeLock = null, awake = false;
+function keepAwake(on){
+  if(on === awake) return; awake = on;
+  if(NATIVE){ try{ NATIVE.keepScreenOn(!!on); }catch(e){} return; }
+  if(on && navigator.wakeLock){ navigator.wakeLock.request("screen").then(function(l){ wakeLock = l; }).catch(function(){}); }
+  if(!on && wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+}
+var lastActivity = Date.now();
+function touch(){ lastActivity = Date.now(); keepAwake(true); }
+
+/* ================= таймеры ================= */
+var T = null; // {mode:'rest'|'seq', ...}
+function startRest(sec, label, next){
+  stopTimer(true);
+  if(sec <= 0) return;
+  T = {mode:"rest", end:Date.now() + sec * 1000, total:sec, label:label, next:next, warned:{}};
+  if(watchOn("rest")) alertAt(1, T.end, "Отдых окончен", next || label);
+  touch(); drawTimer();
+}
+function startSeq(segs, title, onDone, onSeg){
+  stopTimer(true);
+  if(!segs || !segs.length) return;
+  T = {mode:"seq", segs:segs, idx:-1, title:title, onDone:onDone, onSeg:onSeg, laps:[]};
+  nextSeg(); touch();
+}
+function scheduleSeqAlerts(){
+  if(!T || T.mode !== "seq" || !NATIVE) return;
+  for(var i = 0; i < 40; i++) alertCancel(100 + i);
+  if(S.profile.watch === "off") return;
+  var t = Date.now() + (T.paused ? 0 : 0), acc = T.end - Date.now(), n = 0;
+  if(T.seg && T.seg.s === 0) return;
+  var tEnd = T.end;
+  for(var j = T.idx + 1; j <= T.segs.length && n < 40; j++){
+    var nxt = T.segs[j];
+    if(S.profile.watch === "all" || !nxt){
+      var txt = nxt ? (nxt.l + (nxt.s ? " — " + fmtT(nxt.s) : "")) : "Готово";
+      alertAt(100 + n, tEnd, T.title, txt); n++;
+    }
+    if(!nxt || nxt.s === 0) break;
+    tEnd += nxt.s * 1000;
+  }
+}
+function nextSeg(){
+  if(!T) return;
+  T.idx++;
+  if(T.idx >= T.segs.length){ var cb = T.onDone; T = null; signalEnd(); drawTimer(); if(cb) cb(); render(true); return; }
+  var s = T.segs[T.idx]; T.seg = s; T.warned = {};
+  if(s.s === 0){ T.open = Date.now(); T.end = null; } else { T.end = Date.now() + s.s * 1000; T.open = null; }
+  if(T.idx > 0) (s.k === "work" ? signalStart() : signalTick());
+  if(T.onSeg) T.onSeg(T.idx);
+  scheduleSeqAlerts(); drawTimer(); updateSegLists();
+}
+function stopTimer(silent){
+  if(T && T.mode === "rest") alertCancel(1);
+  if(T && T.mode === "seq" && NATIVE) for(var i = 0; i < 40; i++) alertCancel(100 + i);
+  T = null; if(!silent) drawTimer();
+}
+function adjustRest(d){ if(!T) return; if(T.mode === "rest"){ T.end += d * 1000; T.total += d; if(watchOn("rest")) alertAt(1, T.end, "Отдых окончен", T.next || T.label); } else if(T.end){ T.end += d * 1000; scheduleSeqAlerts(); } drawTimer(); }
+function togglePause(){
+  if(!T) return;
+  if(T.paused){ if(T.end != null) T.end = Date.now() + T.left; if(T.open != null) T.open = Date.now() - T.openEl; T.paused = false; if(T.mode === "rest" && watchOn("rest")) alertAt(1, T.end, "Отдых окончен", T.next || T.label); scheduleSeqAlerts(); }
+  else { if(T.end != null) T.left = T.end - Date.now(); if(T.open != null) T.openEl = Date.now() - T.open; T.paused = true; alertCancel(1); if(NATIVE) for(var i = 0; i < 40; i++) alertCancel(100 + i); }
+  drawTimer();
+}
+function fmtT(s){ s = Math.max(0, Math.round(s)); var m = Math.floor(s / 60), r = s % 60; return m + ":" + String(r).padStart(2, "0"); }
+function tick(){
+  if(T && !T.paused){
+    if(T.end != null){
+      var left = (T.end - Date.now()) / 1000;
+      var whole = Math.ceil(left);
+      if(whole <= 3 && whole >= 1 && !T.warned[whole]){ T.warned[whole] = 1; signalTick(); }
+      if(left <= 0){
+        if(T.mode === "rest"){ T = null; signalEnd(); var bar = document.getElementById("tbar"); drawTimer(true); return; }
+        nextSeg(); return;
+      }
+    }
+    paintTimer();
+  }
+  if(awake && !T && Date.now() - lastActivity > 20 * 60 * 1000) keepAwake(false);
+}
+setInterval(tick, 250);
+document.addEventListener("visibilitychange", function(){ if(!document.hidden && awake && !NATIVE) { awake = false; keepAwake(true); } });
+
+function drawTimer(justDone){
+  var bar = document.getElementById("tbar");
+  if(!T){
+    if(justDone){ bar.hidden = false; bar.className = "tbar done"; bar.innerHTML = ""; var inn = h("div", {class:"tbar-in"}, [h("div", {class:"tl", text:"Отдых окончен — к подходу"}), h("div", {class:"tc", text:"0:00"}), h("div", {class:"tb"}, [h("button", {type:"button", text:"Закрыть", onclick:function(){ bar.hidden = true; }})])]); bar.appendChild(inn); setTimeout(function(){ if(!T) bar.hidden = true; }, 6000); }
+    else bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  var kind = T.mode === "rest" ? "" : (T.seg.k || "");
+  bar.className = "tbar " + kind;
+  bar.innerHTML = "";
+  var label = T.mode === "rest" ? "Отдых" + (T.next ? " → " + T.next : "") : T.seg.l;
+  var tip = T.mode === "rest" ? "" : ((T.seg.t ? T.seg.t + " · " : "") + (T.segs[T.idx + 1] ? "далее: " + T.segs[T.idx + 1].l : "последний отрезок") + " · " + (T.idx + 1) + "/" + T.segs.length);
+  var btns = [];
+  if(T.mode === "rest"){
+    btns = [h("button", {type:"button", text:"−15 с", onclick:function(){ adjustRest(-15); }}), h("button", {type:"button", text:"+15 с", onclick:function(){ adjustRest(15); }}), h("button", {type:"button", text:"Пропустить", onclick:function(){ stopTimer(); }})];
+  } else {
+    btns = [h("button", {type:"button", text:T.paused ? "▶ Дальше" : "❚❚ Пауза", onclick:togglePause}),
+      T.seg.s === 0 ? h("button", {type:"button", text:"Круг готов", onclick:function(){ var el = (Date.now() - T.open) / 1000; T.laps.push(Math.round(el)); if(T.onLap) T.onLap(Math.round(el)); nextSeg(); }}) : h("button", {type:"button", text:"Следующий ⏭", onclick:nextSeg}),
+      h("button", {type:"button", text:"Стоп", onclick:function(){ stopTimer(); render(true); }})];
+  }
+  bar.appendChild(h("div", {class:"tbar-in"}, [
+    h("div", {class:"tl", id:"t-label", text:label}),
+    h("div", {class:"tc", id:"t-clock", text:"0:00"}),
+    h("div", {class:"tt", id:"t-tip", text:tip}),
+    h("div", {class:"prog"}, [h("i", {id:"t-prog"})]),
+    h("div", {class:"tb"}, btns)
+  ]));
+  paintTimer();
+}
+function paintTimer(){
+  if(!T) return;
+  var c = document.getElementById("t-clock"), p = document.getElementById("t-prog"); if(!c) return;
+  if(T.end != null){
+    var left = T.paused ? T.left / 1000 : (T.end - Date.now()) / 1000;
+    c.textContent = fmtT(Math.ceil(left));
+    var tot = T.mode === "rest" ? T.total : T.seg.s;
+    if(p) p.style.width = Math.max(0, Math.min(100, 100 * (1 - left / tot))) + "%";
+  } else if(T.open != null){
+    var el = T.paused ? T.openEl / 1000 : (Date.now() - T.open) / 1000; c.textContent = fmtT(el); if(p) p.style.width = "0";
+  }
+}
+function updateSegLists(){
+  document.querySelectorAll(".seglist").forEach(function(el){
+    var id = el.getAttribute("data-seq");
+    el.querySelectorAll("div").forEach(function(row, i){ row.className = (T && T.mode === "seq" && T.sid === id) ? (i < T.idx ? "past" : i === T.idx ? "cur" : "") : ""; });
+  });
+}
+
+/* ================= DOM-помощники ================= */
+function h(tag, attrs, kids){
+  var el = document.createElement(tag);
+  if(attrs) Object.keys(attrs).forEach(function(k){
+    var v = attrs[k]; if(v === null || v === undefined || v === false) return;
+    if(k === "html") el.innerHTML = v; else if(k === "text") el.textContent = v;
+    else if(k.slice(0,2) === "on") el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  });
+  (kids || []).forEach(function(c){ if(c === null || c === undefined || c === false) return; el.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return el;
+}
+function plain(list){ return h("ul", {class:"plain"}, list.map(function(t){ return h("li", {html:t}); })); }
+function sec(title, kids, id){ return h("section", {class:"sec", id:id || null}, [h("h4", {text:title})].concat(kids)); }
+function det(title, kids, open, id){ var d = h("details", {class:"sec", id:id || null}, [h("summary", {text:title})].concat(kids)); if(open) d.open = true; return d; }
+function toast(t){ var el = h("div", {class:"toast", text:t}); document.body.appendChild(el); setTimeout(function(){ el.remove(); }, 2600); }
+
+/* ================= даты ================= */
+var WD = ["вс","пн","вт","ср","чт","пт","сб"], MON = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+function startDate(){ var s = S.profile.start; if(!/^\d{4}-\d{2}-\d{2}$/.test(s || "")) return null; var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+function dateOf(d){ var s = startDate(); if(!s) return null; var x = new Date(s); x.setDate(x.getDate() + d - 1); return x; }
+function fmtDate(x, long){ if(!x) return ""; return (long ? WD[x.getDay()] + ", " : "") + x.getDate() + " " + MON[x.getMonth()]; }
+function todayIdx(){ var s = startDate(); if(!s) return null; var t = new Date(); t.setHours(0,0,0,0); var n = Math.round((t - s) / 864e5) + 1; return (n >= 1 && n <= 140) ? n : null; }
+function isoToday(){ var t = new Date(); return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0"); }
+
+/* ================= навигация ================= */
+var UI = {tab:"day", day:1};
+var lastDay = parseInt(lsGet("bl3-day") || "0", 10);
+var hm = /^#d(\d{1,3})$/.exec(location.hash || "");
+if(hm && +hm[1] >= 1 && +hm[1] <= 140) UI.day = +hm[1]; else if(todayIdx()) UI.day = todayIdx(); else if(lastDay >= 1 && lastDay <= 140) UI.day = lastDay;
+function selectDay(d, scroll){ UI.day = d; UI.tab = "day"; lsSet("bl3-day", String(d)); render(); if(scroll) window.scrollTo(0, 0); }
+document.querySelectorAll("#tabbar button").forEach(function(b){ b.addEventListener("click", function(){ UI.tab = b.dataset.tab; render(); window.scrollTo(0, 0); }); });
+window.addEventListener("hashchange", function(){ var m = /^#d(\d{1,3})$/.exec(location.hash || ""); if(m && +m[1] >= 1 && +m[1] <= 140 && +m[1] !== UI.day) selectDay(+m[1], true); });
+window.appBack = function(){ if(T){ stopTimer(); return true; } if(UI.tab !== "day"){ UI.tab = "day"; render(); return true; } return false; };
+
+function render(keepScroll){
+  var y = window.scrollY;
+  var app = document.getElementById("app"); app.innerHTML = "";
+  document.querySelectorAll("#tabbar button").forEach(function(b){ b.setAttribute("aria-current", String(b.dataset.tab === UI.tab)); });
+  if(UI.tab === "day") renderDayTab(app);
+  else if(UI.tab === "progress") renderProgress(app);
+  else if(UI.tab === "ref") renderRef(app);
+  else renderProfile(app);
+  updateSegLists();
+  if(keepScroll) window.scrollTo(0, y);
+}
+
+/* ================= экран «День» ================= */
+function renderDayTab(app){
+  var day = DAYS[UI.day - 1], t = todayIdx(), todayW = t ? DAYS[t-1].w : null;
+  var head = h("div", {class:"row"}, [h("div", {class:"grow"}, [h("div", {class:"eyebrow", text:"Брюс Ли 3.0 · 20 недель · 2/2"})]),
+    t && t !== UI.day ? h("button", {type:"button", class:"btn sm", text:"Сегодня", onclick:function(){ selectDay(t, true); }}) : null]);
+  app.appendChild(head);
+  if(!startDate()) app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", text:"Укажи дату первой смены — у дней появятся даты, а приложение будет открываться на сегодняшнем дне."}), h("button", {type:"button", class:"btn sm", text:"Указать в профиле", onclick:function(){ UI.tab = "profile"; render(); }})]));
+  app.appendChild(h("div", {class:"ruler"}, WEEKS.map(function(w){
+    var hasDl = w.cycles.some(function(c){ return DATA.deload.indexOf(c) >= 0; });
+    return h("button", {type:"button", class:"cell" + (w.w === todayW ? " today" : ""), style:"--pc:" + PCOL[w.p], "aria-current":String(w.w === day.w), "aria-label":"Неделя " + w.w + ", " + PH[w.p],
+      onclick:function(){ var f = DAYS.filter(function(x){ return x.w === w.w; })[0]; selectDay(f.d); }}, [String(w.w), hasDl ? h("span", {class:"dlm"}) : null]);
+  })));
+  app.appendChild(h("div", {class:"legend"}, PH.map(function(n, i){ return h("span", {style:"--c:" + PCOL[i], text:n}); }).concat([h("span", {text:"• разгрузка", style:"--c:transparent"})])));
+  var wk = WEEKS[day.w - 1], wd = DAYS.filter(function(x){ return x.w === day.w; }), cyc = wk.cycles;
+  app.appendChild(h("div", {class:"weekhead"}, [
+    h("div", {class:"row"}, [h("h2", {text:"Неделя " + day.w}), h("span", {class:"chip fill", style:"--c:" + PCOL[wk.p], text:PH[wk.p]}), h("span", {class:"muted small", text:(cyc.length > 1 ? "циклы " + cyc[0] + "–" + cyc[cyc.length-1] : "цикл " + cyc[0]) + " · дни " + wd[0].d + "–" + wd[wd.length-1].d})]),
+    h("p", {class:"muted small", text:wk.note})
+  ]));
+  app.appendChild(h("div", {class:"days"}, wd.map(function(x){
+    var r = S.days[key(x.d)], dt = dateOf(x.d);
+    return h("button", {type:"button", class:"dayb" + (r && r.done ? " done" : "") + (x.d === t ? " today" : ""), style:"--pc:" + (x.dl ? "var(--dl)" : PCOL[x.p]), "aria-current":String(x.d === day.d), onclick:function(){ selectDay(x.d); }}, [
+      h("span", {class:"n", text:String(x.d)}), h("span", {class:"k", html:{A:"<b>A</b>вых.", B:"<b>B</b>вых.", C:"<b>C</b>см. 1", R:"<b>—</b>см. 2"}[x.k]}), dt ? h("span", {class:"dt", text:fmtDate(dt)}) : null]);
+  })));
+  app.appendChild(renderDay(day));
+}
+
+function chip(text, col, fill){ return h("span", {class:"chip" + (fill ? " fill" : ""), style:col ? "--c:" + col : null, text:text}); }
+
+function stepsBlock(day, prefix, steps){
+  var r = rec(day.d);
+  return h("ol", {class:"steps"}, steps.map(function(st, i){
+    var id = prefix + "-" + i, on = !!r.steps[id];
+    var cb = h("input", {type:"checkbox", "aria-label":"Готово"}); cb.checked = on;
+    cb.addEventListener("change", function(){ r.steps[id] = cb.checked; save(key(day.d)); li.className = "step" + (cb.checked ? " on" : ""); });
+    var body = [h("div", {class:"st", html:st.t})];
+    if(st.segs){
+      var total = st.segs.reduce(function(a, s){ return a + s.s; }, 0);
+      body.push(h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:(st.tlabel || "▶ Таймер " + fmtT(total)), onclick:function(){ startSeq(st.segs, stripTags(st.t).slice(0, 40), function(){ r.steps[id] = true; save(key(day.d)); }); T.sid = null; }})]));
+    }
+    var li = h("li", {class:"step" + (on ? " on" : "")}, [cb, h("div", {class:"sb"}, body)]);
+    return li;
+  }));
+}
+function stripTags(s){ var d = document.createElement("div"); d.innerHTML = s; return d.textContent; }
+
+function renderDay(day){
+  var col = day.dl ? "var(--dl)" : PCOL[day.p], dt = dateOf(day.d), r = rec(day.d);
+  var where = {C:"Смена 1", R:"Смена 2", A:"Выходной 1", B:"Выходной 2"}[day.k];
+  var card = h("article", {class:"day", style:"--pc:" + col});
+  var chips = [chip(PH[day.p], PCOL[day.p], true)];
+  if(day.dl) chips.push(chip("Разгрузка", "var(--dl)")); if(day.test) chips.push(chip("Тесты", "var(--warn)")); if(day.diet) chips.push(chip("Перерыв в диете", "var(--ok)"));
+  var title = day.title.replace(/^[^·]+·\s*/, ""); title = title.charAt(0).toUpperCase() + title.slice(1);
+  var startBtn = null;
+  if(day.k !== "R") startBtn = h("button", {type:"button", class:"btn big", text:r.done ? "Тренировка отмечена ✓" : "Начать тренировку", onclick:function(){ touch(); var el = document.getElementById(day.k === "C" ? "sec-main" : "sec-warm"); if(el){ if(el.tagName === "DETAILS") el.open = true; el.scrollIntoView({block:"start", behavior:"smooth"}); } toast("Экран не будет гаснуть во время тренировки"); }});
+  card.appendChild(h("div", {class:"day-top"}, [
+    h("div", {class:"big"}, [h("h2", {text:"День " + day.d}), h("span", {class:"muted small", text:(dt ? fmtDate(dt, true) + " · " : "") + "неделя " + day.w + " · цикл " + day.c + " · " + where})]),
+    h("div", {class:"row"}, chips), h("h3", {text:title}), h("p", {class:"goal", text:day.goal}), h("div", {class:"muted small", text:"Время: " + day.time}), startBtn
+  ]));
+  card.appendChild(det("Утро: ритуал «Под лордоз» — 8 мин", [stepsBlock(day, "rit", RITUAL), h("p", {class:"small muted", text:"Каждый день, сразу после подъёма. Это твой вариант ежедневного пресса и растяжки Ли, бережный к пояснице."})]));
+  if(day.k === "C" || day.k === "R"){
+    card.appendChild(sec("На смене", [plain(day.k === "C" ? [
+      "Эспандер в перерывах: 3–5 подходов на руку до лёгкого жжения. Ли называл это «постоянный захват рукой» и носил эспандер с собой.",
+      "Каждые 60–90 мин — 2–3 мин движения: пройтись, 10 приседаний, растяжка сгибателей бедра стоя.",
+      "Вода всегда рядом, около 2 л за смену. Креатин 3–5 г в любой приём пищи."
+    ] : ["Эспандер — 3 подхода на руку, легче, чем вчера.", "Движение каждые 60–90 мин. Вода около 2 л. Креатин 3–5 г."])]));
+  }
+  if(day.k === "C"){
+    card.appendChild(sec("После смены — зал, 40–45 мин", [h("p", {class:"small muted", text:"Без отдельной разминки: первые 3 мин зоны 2 и есть разминка. Пары «a/b» — одна станция и упражнение рядом с ней."}), exList(day)], "sec-main"));
+    card.appendChild(sec("Нет сил или спал меньше 6 ч", [h("p", {text:"Только 20 мин зоны 2 и присед у стены. Совсем плохо — прогулка 30 мин вместо зала."})]));
+  }
+  if(day.k === "R"){
+    card.appendChild(sec("После смены — прогулка 20–30 мин и 15–20 мин дома", [stepsBlock(day, "home", homeSteps(day.wall)), h("p", {class:"small muted", text:"Нет сил — только дыхание, сгибатели бедра и присед у стены. Никаких интенсивных нагрузок."})], "sec-main"));
+  }
+  if(day.k === "A" || day.k === "B"){
+    var warm = [
+      {t:"<b>Кардио 5 мин</b> на вертикальном велотренажёре или эллипсе, пульс 100–120.", segs:[{l:"Кардио, пульс 100–120", s:300, k:"warm"}]},
+      {t:"<b>Мобильность 3 мин:</b> «величайшая растяжка» 3 на сторону, 90/90 для бёдер 5 на сторону, «открытая книга» 5 на сторону.", segs:[{l:"Мобильность", s:180, k:"warm"}]},
+      {t:"<b>Активация 2 мин:</b> тяга каната к лицу лёгким весом × 15, гоблет-присед с лёгкой гантелью и паузой × 6, отжимания × 5."}
+    ];
+    if(day.rope) warm.push({t:"<b>" + day.rope + "</b>", segs:day.ropeSegs});
+    var ramp = rampFor(day);
+    warm.push({t:"<b>Подводящие к первому силовому:</b> гриф × 8 → 50% × 5 → 70% × 3 → 85% × 1–2." + (ramp ? "<br><span class='small'>Сегодня: " + ramp + ".</span>" : "")});
+    card.appendChild(det("Разминка — 12 мин, без исключений", [stepsBlock(day, "warm", warm), h("p", {class:"small muted", text:"Ли повредил крестцовый нерв, сделав «доброе утро» с весом своего тела без разминки. Разминка — половина защиты от травм в 39 лет."})], false, "sec-warm"));
+    card.appendChild(sec(day.test ? "Тесты" : "Основная часть", [exList(day)], "sec-ex"));
+    if(day.cond) card.appendChild(sec(day.k === "A" ? (day.test ? "Заминка" : "Финиш") : "Кондиция", [condCard(day, day.cond, "c-main")]));
+    card.appendChild(det("Заминка и растяжка — 8 мин", [stepsBlock(day, "cool", COOLDOWN)]));
+    if(!day.test) card.appendChild(sec("Мини-версия на тяжёлый день", [h("p", {text:"Разминка, первые два основных упражнения из плана и 10 мин зоны 2. Это лучше, чем пропуск."})]));
+  }
+  var food = (day.k === "A" || day.k === "B")
+    ? "Калории те же, но углеводы вокруг тренировки: за 2–3 ч до — обычный приём пищи, после — 40 г белка и рис, картофель или фрукты. Вода: 0,5 л за 2 ч до зала и по глотку во время."
+    : "Белок 170–180 г в 4 приёма, углеводов на 40–60 г меньше, чем в дни A и B. Контейнеры на смену с вечера.";
+  if(day.diet) food = "Перерыв в диете (дни 77–88): около 2700 ккал, прибавка за счёт углеводов, белок прежний. " + food;
+  card.appendChild(sec("Питание и сон", [plain([food, day.k === "R" ? "Сон перед тренировкой A — главный «тренажёр» недели: 7+ ч, экран убрать за 45 мин, в спальне темно и прохладно." : "Сон 7–9 ч, подъём в одно время ±1 ч. Интенсивная нагрузка не позже чем за 3 ч до сна."])]));
+  card.appendChild(journal(day));
+  card.appendChild(h("div", {class:"nav"}, [
+    h("button", {type:"button", class:"btn ghost", disabled:day.d === 1 ? true : null, onclick:function(){ selectDay(day.d - 1, true); }, text:"← День " + Math.max(1, day.d - 1)}),
+    h("button", {type:"button", class:"btn ghost", disabled:day.d === 140 ? true : null, onclick:function(){ selectDay(day.d + 1, true); }, text:"День " + Math.min(140, day.d + 1) + " →"})
+  ]));
+  return card;
+}
+
+function condCard(day, cd, sid){
+  var r = rec(day.d), cr = r.cond[sid] || {};
+  var list = h("div", {class:"seglist", "data-seq":sid}, cd.segs.map(function(s){ return h("div", {}, [h("span", {text:s.l}), h("span", {class:"num", text:s.s ? fmtT(s.s) : "по готовности"})]); }));
+  var laps = cr.laps && cr.laps.length ? h("p", {class:"small", text:"Время кругов: " + cr.laps.map(fmtT).join(" · ")}) : null;
+  var prevLaps = null;
+  if(cd.kind === "circ1" || cd.kind === "circ2"){
+    for(var d = day.d - 1; d >= 1; d--){ var rr = S.days[key(d)]; var pd = DAYS[d-1]; if(rr && rr.cond && rr.cond[sid] && rr.cond[sid].laps && pd.cond && pd.cond.kind === cd.kind){ prevLaps = h("p", {class:"small muted", text:"Прошлый раз (день " + d + "): " + rr.cond[sid].laps.map(fmtT).join(" · ") + " — сегодня быстрее."}); break; } }
+  }
+  var start = h("button", {type:"button", class:"btn", text:cr.done ? "Сделано ✓ · запустить снова" : "▶ Запустить таймер", onclick:function(){
+    var laps = [];
+    startSeq(cd.segs, cd.title, function(){ var x = rec(day.d); x.cond[sid] = {done:true, laps:laps}; save(key(day.d)); }, null);
+    T.sid = sid; T.onLap = function(s){ laps.push(s); }; updateSegLists();
+  }});
+  return h("div", {class:"cond"}, [
+    h("div", {class:"ch"}, [h("span", {text:cd.title}), h("span", {class:"muted num", text:"≈ " + cd.mins + " мин"})]),
+    h("ul", {}, cd.lines.map(function(l){ return h("li", {text:l}); })),
+    prevLaps, laps, h("div", {class:"row"}, [start]), list
+  ]);
+}
+
+function exList(day){
+  var wrap = h("div", {style:"display:grid;gap:12px"}), groups = [], cur = null;
+  day.items.forEach(function(it, idx){
+    if(it.cond){ groups.push({cond:it.cond}); cur = null; return; }
+    var base = it.lab.replace(/[ab]$/, "");
+    if(cur && cur.base === base && /[ab]$/.test(it.lab)) cur.items.push({it:it, idx:idx}); else { cur = {base:base, items:[{it:it, idx:idx}]}; groups.push(cur); }
+  });
+  groups.forEach(function(g){
+    if(g.cond){ wrap.appendChild(condCard(day, g.cond, "c-first")); return; }
+    var pair = g.items.length > 1;
+    var box = h("div", {class:"group" + (pair ? "" : " single")});
+    if(pair) box.appendChild(h("div", {class:"gl", text:"Пара " + g.base + ": подход a → сразу подход b → отдых → снова a"}));
+    g.items.forEach(function(x){ box.appendChild(exCard(day, x.it, x.idx)); });
+    wrap.appendChild(box);
+  });
+  return wrap;
+}
+
+function partnerOf(day, it){
+  var base = it.lab.replace(/[ab]$/, ""), want = /a$/.test(it.lab) ? base + "b" : base + "a";
+  return (day.items || []).filter(function(x){ return !x.cond && x.lab === want; })[0] || null;
+}
+function rowLabel(row, i, n){
+  if(row.kind === "top") return ["Топ", ""];
+  if(row.kind === "back") return ["Добивка", ""];
+  if(row.kind === "test") return ["Тест", ""];
+  return ["Подход", (i + 1) + "/" + n];
+}
+function rowTarget(sp, row){
+  var side = sp.side ? " на " + sp.side : "";
+  if(row.kind === "amrap") return row.off ? "макс − " + row.off : "максимум";
+  if(sp.unit === "sec") return (row.hi ? (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " с" : "на время") + side;
+  if(sp.unit === "m") return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " м";
+  return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повт." + side + (row.rpe ? " · RPE " + fkg(row.rpe) : "");
+}
+
+function exCard(day, it, idx){
+  var e = EX[it.ex], sp = it.spec, r = rec(day.d), k = setKey(it);
+  var arr = r.sets[k] || []; r.sets[k] = arr;
+  var wtUnit = sp.wt === "assist" ? "противовес, кг" : sp.wt === "db" ? (it.ex === "farmer" || it.ex === "suitcase" ? "кг в руке" : "кг гантель") : sp.wt === "watt" ? "ватты" : "кг";
+  var hasW = sp.wt !== "bw";
+  var hasRpe = !!(sp.rows.some(function(x){ return x.rpe; }) || sp.main) && sp.wt !== "watt" && sp.unit === "reps";
+  var timed = sp.unit === "sec";
+  var card = h("div", {class:"ex", id:"ex-" + day.d + "-" + idx});
+  var s0 = suggest(day, it, firstOpenRow(arr, sp));
+  var sugg = null;
+  if(sp.wt === "assist" && s0 && s0.w != null) sugg = h("div", {class:"sugg"}, [h("span", {text:"Противовес сегодня: "}), h("b", {text:fkg(s0.w) + " кг"}), h("div", {class:"hint", text:s0.why + ". Меньше противовес — тяжелее."})]);
+  else if(s0 && s0.w != null) sugg = h("div", {class:"sugg"}, [h("span", {text:"Вес сегодня: "}), h("b", {text:fkg(s0.w) + " кг"}), h("div", {class:"hint", text:s0.why})]);
+  else if(s0 && s0.why) sugg = h("div", {class:"sugg"}, [h("div", {class:"hint", text:s0.why})]);
+  if(sp.wt === "watt"){ var best = bestWatts(it.ex, day.d); if(best) sugg = h("div", {class:"sugg"}, [h("span", {text:"Лучшие ватты прошлых раз: "}), h("b", {text:best + " Вт"})]); }
+  card.appendChild(h("div", {class:"ex-h"}, [h("span", {class:"lab", text:it.lab}), h("span", {class:"ex-name", text:e.name}), h("span", {class:"sets", text:it.sets})]));
+  card.appendChild(h("div", {class:"ex-load", text:it.load}));
+  if(it.rest) card.appendChild(h("div", {class:"ex-rest", text:"Отдых: " + it.rest}));
+  if(it.note) card.appendChild(h("div", {class:"ex-note", text:it.note}));
+  if(sugg) card.appendChild(sugg);
+  var list = h("div", {class:"setlist"});
+  sp.rows.forEach(function(row, i){ list.appendChild(setRow(day, it, idx, i, row, arr, hasW, hasRpe, timed, wtUnit)); });
+  card.appendChild(list);
+  card.appendChild(h("details", {}, [h("summary", {text:"Как делать · если занято"}), h("div", {}, [
+    h("p", {}, [h("b", {text:"Техника. "}), e.how]), h("p", {}, [h("b", {text:"Частая ошибка. "}), e.err]), h("p", {}, [h("b", {text:"Если занято. "}), e.alt])])]));
+  return card;
+}
+function firstOpenRow(arr, sp){ for(var i = 0; i < sp.rows.length; i++){ if(!arr[i] || !arr[i].done) return i; } return 0; }
+function bestWatts(ex, beforeDay){ var b = 0; sessions(ex, beforeDay).forEach(function(s){ doneSets(s.sets).forEach(function(x){ if(x.w > b) b = x.w; }); }); return b || null; }
+
+function setRow(day, it, idx, i, row, arr, hasW, hasRpe, timed, wtUnit){
+  var sp = it.spec, st = arr[i] || {}, lbl = rowLabel(row, i, sp.rows.length);
+  var sug = hasW && sp.wt !== "watt" ? suggest(day, it, i) : null;
+  var wIn = null, rIn = null, rpeSel = null;
+  if(hasW){ wIn = h("input", {type:"text", inputmode:"decimal", placeholder:sp.wt === "watt" ? "Вт" : "кг", "aria-label":wtUnit}); wIn.value = st.w != null ? fkg(st.w) : (sug && sug.w != null ? fkg(sug.w) : ""); }
+  var fixed = row.lo != null && row.lo === row.hi;
+  rIn = h("input", {type:"text", inputmode:"numeric", placeholder:timed ? "с" : (row.kind === "amrap" ? "повт." : (row.lo != null ? (fixed ? String(row.hi) : row.lo + "–" + row.hi) : "")), "aria-label":timed ? "секунды" : (sp.unit === "m" ? "метры" : "повторы")});
+  rIn.value = st.r != null ? String(st.r) : (fixed && !timed ? String(row.hi) : (timed && row.hi ? String(row.hi) : ""));
+  if(hasRpe){ rpeSel = h("select", {"aria-label":"RPE"}); ["RPE","6","6,5","7","7,5","8","8,5","9","9,5","10"].forEach(function(o, j){ var op = h("option", {value:j === 0 ? "" : o.replace(",", "."), text:o}); rpeSel.appendChild(op); }); rpeSel.value = st.rpe ? String(st.rpe) : ""; }
+  var cls = "set" + (hasW ? "" : " nowt") + (hasRpe ? "" : " norpe") + (st.done ? " isdone" : "");
+  var ok = h("button", {type:"button", class:"ok", "aria-label":"Подход сделан", text:st.done ? "✓" : "○"});
+  var kids = [h("div", {class:"sl"}, [h("b", {text:lbl[0]}), lbl[1] + (lbl[1] ? " · " : "") + rowTarget(sp, row)])];
+  if(wIn) kids.push(wIn);
+  if(timed && !st.done){
+    kids.push(h("button", {type:"button", class:"tbtn", text:"▶ " + (row.hi ? row.hi + " с" : "старт"), onclick:function(){
+      var segs = [{l:"Приготовься", s:5, k:"rest"}];
+      var sec = row.hi || 0;
+      if(sp.side){ segs = segs.concat(sec ? [{l:EX[it.ex].name + " — левая", s:sec, k:"work"}, {l:"Смена стороны", s:5, k:"rest"}, {l:EX[it.ex].name + " — правая", s:sec, k:"work"}] : [{l:"Левая сторона — держи до потери линии", s:0, k:"open"}, {l:"Смена стороны", s:5, k:"rest"}, {l:"Правая сторона", s:0, k:"open"}]); }
+      else segs.push({l:EX[it.ex].name + (it.ex === "bike_sprint" ? " — СПРИНТ" : ""), s:sec, k:"work"});
+      var laps = [];
+      startSeq(segs, EX[it.ex].name, function(){ markDone(day, it, idx, i, wIn ? pnum(wIn.value) : null, sec || (laps.length ? Math.min.apply(null, laps) : null), null, true); });
+      T.onLap = function(s){ laps.push(s); };
+    }}));
+  } else kids.push(rIn);
+  if(rpeSel) kids.push(rpeSel);
+  [wIn, rIn, rpeSel].forEach(function(inp){ if(!inp) return; inp.addEventListener("change", function(){ var cur = arr[i]; if(!cur || !cur.done) return; if(inp === wIn) cur.w = pnum(wIn.value); if(inp === rIn) cur.r = pnum(rIn.value); if(inp === rpeSel) cur.rpe = pnum(rpeSel.value); save(key(day.d)); }); });
+  ok.addEventListener("click", function(){
+    if(st.done){ arr[i] = Object.assign({}, st, {done:false}); save(key(day.d)); refreshCard(day, it, idx); return; }
+    var w = wIn ? pnum(wIn.value) : null, rr = pnum(rIn.value), rp = rpeSel ? pnum(rpeSel.value) : null;
+    if(rr == null && !timed && row.kind !== "amrap" && row.lo != null && !fixed){ rIn.focus(); toast("Впиши, сколько повторов сделал"); return; }
+    if(rr == null && row.kind === "amrap"){ rIn.focus(); toast("Впиши число повторов"); return; }
+    markDone(day, it, idx, i, w, rr, rp, false);
+  });
+  kids.push(ok);
+  return h("div", {class:cls}, kids);
+}
+
+function markDone(day, it, idx, i, w, r, rpe, fromTimer){
+  var rr = rec(day.d), k = setKey(it); var arr = rr.sets[k] || (rr.sets[k] = []);
+  arr[i] = {w:w, r:r, rpe:rpe, done:true, t:Date.now()};
+  save(key(day.d)); touch();
+  var sp = it.spec, n = sp.rows.length;
+  var partner = partnerOf(day, it);
+  var nextTxt = "";
+  if(sp.pairNext && partner){
+    var pi = day.items.indexOf(partner), parr = rr.sets[setKey(partner)] || [], pr = firstOpenRow(parr, partner.spec);
+    if(!(parr[pr] && parr[pr].done)){ toast("Сразу к " + partner.lab + ": " + EX[partner.ex].name); refreshCard(day, it, idx); highlight(day.d, pi); return; }
+  }
+  // кто следующий после отдыха
+  var target = it, ti = idx;
+  if(/b$/.test(it.lab)){ var a = partnerOf(day, it); if(a){ var aarr = rr.sets[setKey(a)] || []; if(firstOpenRow(aarr, a.spec) < a.spec.rows.length && !(aarr[firstOpenRow(aarr, a.spec)] || {}).done){ target = a; ti = day.items.indexOf(a); } } }
+  var tarr = rr.sets[setKey(target)] || [], tr = firstOpenRow(tarr, target.spec);
+  if(tarr[tr] && tarr[tr].done){
+    var nx = nextItem(day, ti); if(nx){ target = nx.it; ti = nx.idx; tr = 0; } else target = null;
+  }
+  if(target){
+    var s = suggest(day, target, tr);
+    nextTxt = EX[target.ex].name + ", " + (target.spec.rows.length > 1 ? "подход " + (tr + 1) + "/" + target.spec.rows.length : "подход") + (s && s.w != null ? " · " + fkg(s.w) + " кг" : "") + (target.spec.rows[tr] && target.spec.rows[tr].hi && target.spec.unit === "reps" ? " × " + target.spec.rows[tr].hi : "");
+  } else nextTxt = "основная часть закончена";
+  var rest = sp.rest || (partner && /b$/.test(it.lab) ? partner.spec.rest : 0);
+  if(fromTimer || rest > 0) startRest(rest, EX[it.ex].name, nextTxt);
+  render(true);
+  if(target) highlight(day.d, ti);
+}
+function nextItem(day, idx){ var items = day.items; for(var j = idx + 1; j < items.length; j++){ if(!items[j].cond && !items[j].spec) continue; if(items[j].cond) continue; var a = rec(day.d).sets[setKey(items[j])] || []; if(firstOpenRow(a, items[j].spec) < items[j].spec.rows.length && !(a[firstOpenRow(a, items[j].spec)] || {}).done) return {it:items[j], idx:j}; } return null; }
+function refreshCard(day, it, idx){ var el = document.getElementById("ex-" + day.d + "-" + idx); if(el) el.replaceWith(exCard(day, it, idx)); }
+function highlight(d, idx){ document.querySelectorAll(".ex.next").forEach(function(x){ x.classList.remove("next"); }); var el = document.getElementById("ex-" + d + "-" + idx); if(el){ el.classList.add("next"); } }
+
+function journal(day){
+  var r = rec(day.d);
+  var btn = h("button", {type:"button", class:"btn ghost donebtn", "aria-pressed":String(!!r.done), text:r.done ? "День отмечен ✓" : "Отметить день сделанным",
+    onclick:function(){ r.done = !r.done; save(key(day.d)); if(r.done) keepAwake(false); render(true); }});
+  var ta = h("textarea", {placeholder:"Сон (ч), пульс покоя, самочувствие 1–10, боль (где и сколько из 10), что заменил", "aria-label":"Заметка дня"});
+  ta.value = r.note || "";
+  ta.addEventListener("input", function(){ r.note = ta.value; save(key(day.d)); });
+  var stats = dayStats(day);
+  return h("section", {class:"sec journal"}, [h("h4", {text:"Дневник дня"}), stats ? h("p", {class:"small muted", text:stats}) : null, btn, ta]);
+}
+function dayStats(day){
+  var r = S.days[key(day.d)]; if(!r || !r.sets) return "";
+  var n = 0, tot = 0, ton = 0;
+  (day.items || []).forEach(function(it){ if(it.cond) return; tot += it.spec.rows.length; doneSets(r.sets[setKey(it)]).forEach(function(s){ n++; if(s.w && s.r && it.spec.wt !== "assist" && it.spec.wt !== "watt" && it.spec.unit === "reps") ton += s.w * s.r * (it.spec.wt === "db" && !/farmer|suitcase|goblet|db_swing/.test(it.ex) && !/hk_press|row_one/.test(it.ex) ? 2 : 1); }); });
+  if(!tot) return "";
+  return "Сделано подходов: " + n + " из " + tot + (ton ? " · тоннаж ≈ " + Math.round(ton).toLocaleString("ru-RU") + " кг" : "");
+}
+
+/* ================= прогресс ================= */
+function renderProgress(app){
+  var panel = h("section", {class:"panel"}, [h("h2", {text:"Прогресс"})]);
+  var t = todayIdx() || 141;
+  var doneDays = Object.keys(S.days).filter(function(k){ return S.days[k].done; }).length;
+  var passed = todayIdx() ? todayIdx() : 0;
+  var kp = [h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Дней отмечено"}), h("b", {text:String(doneDays)}), h("span", {class:"tiny muted", text:passed ? "из " + passed + " прошедших" : "из 140"})])];
+  ["bench","squat","deadlift","rdl"].forEach(function(ex){
+    var pts = e1Series(ex); if(!pts.length) return;
+    var last = pts[pts.length-1], first = pts[0];
+    kp.push(h("div", {class:"kpi"}, [h("span", {class:"small muted", text:EX[ex].name.replace(" со штангой", "").replace(" на спине", "")}), h("b", {text:fkg(Math.round(last.v)) + " кг"}), h("span", {class:"tiny muted", text:"оценка максимума" + (pts.length > 1 ? " · " + (last.v >= first.v ? "+" : "") + fkg(Math.round(last.v - first.v)) + " кг" : "")})]));
+  });
+  panel.appendChild(h("div", {class:"kpis"}, kp));
+  ["bench","squat","deadlift","rdl"].forEach(function(ex){ var pts = e1Series(ex); if(pts.length) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:EX[ex].name + " — оценка максимума, кг"}), lineChart(pts, "кг")])); });
+  var pu = []; for(var d = 1; d <= 140; d++){ var r = S.days[key(d)]; if(!r || !r.sets) continue; (DAYS[d-1].items || []).forEach(function(it){ if(it.ex !== "pullup") return; var ds = doneSets(r.sets[setKey(it)]).filter(function(s){ return s.w != null; }); if(ds.length) pu.push({d:d, v:Math.min.apply(null, ds.map(function(s){ return s.w; }))}); }); }
+  if(pu.length) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Подтягивания — противовес гравитрона, кг (меньше — лучше)"}), lineChart(pu, "кг")]));
+  if(!kp[1]) panel.appendChild(h("div", {class:"card"}, [h("p", {class:"muted", text:"Графики появятся после первых записанных подходов в приседе, жиме и тяге: приложение считает оценку максимума по весу, повторам и RPE."})]));
+  // тело
+  var bw = h("input", {type:"text", inputmode:"decimal", id:"b-w", placeholder:"кг"}), ws = h("input", {type:"text", inputmode:"decimal", id:"b-ws", placeholder:"см"}), dtI = h("input", {type:"date", id:"b-dt"}); dtI.value = isoToday();
+  var add = h("button", {type:"button", class:"btn", text:"Добавить", onclick:function(){ var w = pnum(bw.value), x = pnum(ws.value); if(w == null && x == null){ toast("Впиши вес или талию"); return; } S.body.push({date:dtI.value || isoToday(), w:w, waist:x}); S.body.sort(function(a, b){ return a.date < b.date ? -1 : 1; }); save("body"); render(true); }});
+  var bodyCard = h("div", {class:"card"}, [h("h3", {text:"Вес и талия"}), h("p", {class:"small muted", text:"Вес — утром, натощак; смотри на среднее за неделю. Талия — раз в неделю на уровне пупка."}),
+    h("div", {class:"fields"}, [h("div", {class:"field"}, [h("label", {for:"b-dt", text:"Дата"}), dtI]), h("div", {class:"field"}, [h("label", {for:"b-w", text:"Вес, кг"}), bw]), h("div", {class:"field"}, [h("label", {for:"b-ws", text:"Талия, см"}), ws])]), h("div", {class:"row"}, [add])]);
+  var wpts = S.body.filter(function(b){ return b.w != null; }).map(function(b, i){ return {d:i + 1, v:b.w, lbl:b.date}; });
+  if(wpts.length > 1) bodyCard.appendChild(lineChart(wpts, "кг", true));
+  if(S.body.length){
+    bodyCard.appendChild(h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Дата"}), h("th", {class:"r", text:"Вес"}), h("th", {class:"r", text:"Талия"}), h("th", {text:""})])]),
+      h("tbody", {}, S.body.slice().reverse().slice(0, 30).map(function(b){ return h("tr", {}, [h("td", {text:b.date}), h("td", {class:"r", text:b.w != null ? fkg(b.w) : "—"}), h("td", {class:"r", text:b.waist != null ? fkg(b.waist) : "—"}),
+        h("td", {}, [h("button", {type:"button", class:"btn ghost sm", text:"×", "aria-label":"Удалить", onclick:function(){ S.body.splice(S.body.indexOf(b), 1); save("body"); render(true); }})])]); }))])]));
+  }
+  panel.appendChild(bodyCard);
+  app.appendChild(panel);
+}
+function e1Series(ex){
+  var out = [];
+  for(var d = 1; d <= 140; d++){
+    var r = S.days[key(d)]; if(!r || !r.sets) continue;
+    (DAYS[d-1].items || []).forEach(function(it){ if(it.ex !== ex) return; var e = e1rmOf({it:it, sets:r.sets[setKey(it)] || []}); if(e) out.push({d:d, v:e}); });
+  }
+  return out;
+}
+function lineChart(pts, unit, byIndex){
+  var W = 640, H = 200, L = 44, R = 12, Tp = 12, B = 28;
+  var xs = pts.map(function(p){ return p.d; }), ys = pts.map(function(p){ return p.v; });
+  var x0 = byIndex ? 1 : 1, x1 = byIndex ? Math.max(2, pts.length) : 140;
+  var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys); var pad = Math.max(2, (y1 - y0) * 0.15); y0 = Math.floor((y0 - pad) / 5) * 5; y1 = Math.ceil((y1 + pad) / 5) * 5;
+  function X(v){ return L + (v - x0) / (x1 - x0) * (W - L - R); } function Y(v){ return Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B); }
+  var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("class", "chart"); svg.setAttribute("role", "img");
+  function el(t, a, txt){ var e = document.createElementNS(ns, t); Object.keys(a).forEach(function(k){ e.setAttribute(k, a[k]); }); if(txt != null) e.textContent = txt; svg.appendChild(e); return e; }
+  var steps = 4; for(var i = 0; i <= steps; i++){ var v = y0 + (y1 - y0) * i / steps; el("line", {x1:L, x2:W - R, y1:Y(v), y2:Y(v), stroke:"var(--line)", "stroke-width":1}); el("text", {x:L - 6, y:Y(v) + 4, "text-anchor":"end", "font-size":11, fill:"var(--muted)"}, fkg(Math.round(v))); }
+  if(!byIndex) [1, 35, 70, 105, 140].forEach(function(d){ el("text", {x:X(d), y:H - 8, "text-anchor":"middle", "font-size":11, fill:"var(--muted)"}, "д. " + d); });
+  else { el("text", {x:L, y:H - 8, "font-size":11, fill:"var(--muted)"}, pts[0].lbl || ""); el("text", {x:W - R, y:H - 8, "text-anchor":"end", "font-size":11, fill:"var(--muted)"}, pts[pts.length-1].lbl || ""); }
+  var d = pts.map(function(p, i){ return (i ? "L" : "M") + X(byIndex ? i + 1 : p.d).toFixed(1) + " " + Y(p.v).toFixed(1); }).join(" ");
+  el("path", {d:d, fill:"none", stroke:"var(--p1)", "stroke-width":2.5, "stroke-linejoin":"round"});
+  pts.forEach(function(p, i){ el("circle", {cx:X(byIndex ? i + 1 : p.d), cy:Y(p.v), r:i === pts.length - 1 ? 5 : 3, fill:"var(--p1)"}); });
+  var lp = pts[pts.length-1]; el("text", {x:Math.min(W - R - 2, X(byIndex ? pts.length : lp.d)), y:Y(lp.v) - 10, "text-anchor":"end", "font-size":12.5, "font-weight":700, fill:"var(--ink)"}, fkg(Math.round(lp.v * 10) / 10) + " " + unit);
+  return svg;
+}
+
+/* ================= техника ================= */
+function renderRef(app){
+  var groups = {}; Object.keys(EX).forEach(function(k){ var g = EX[k].group; (groups[g] = groups[g] || []).push(k); });
+  var order = ["Ноги","Задняя цепь","Грудь","Спина","Плечи","Руки","Кор","Хват и кор","Икры и ахилл","Таз","Мощность","Давление"];
+  var panel = h("section", {class:"panel"}, [h("h2", {text:"Техника упражнений"}), h("p", {class:"muted", text:"Все упражнения программы: как делать, частая ошибка и чем заменить, если снаряд занят."})]);
+  order.forEach(function(g){
+    if(!groups[g]) return;
+    panel.appendChild(h("h3", {text:g, style:"font-family:var(--f-body);font-size:18px"}));
+    panel.appendChild(h("div", {class:"ex-grid"}, groups[g].map(function(k){ var e = EX[k]; return h("div", {class:"card"}, [h("b", {text:e.name}), h("p", {class:"small", text:e.how}), h("p", {class:"small"}, [h("b", {text:"Ошибка. "}), e.err]), h("p", {class:"small"}, [h("b", {text:"Если занято. "}), e.alt])]); })));
+  });
+  app.appendChild(panel);
+}
+
+/* ================= профиль ================= */
+function field(id, label, value, onchange, attrs){
+  var inp = h("input", Object.assign({id:id, type:"text"}, attrs || {})); inp.value = value == null ? "" : value;
+  inp.addEventListener("change", function(){ onchange(inp.value); });
+  return h("div", {class:"field"}, [h("label", {for:id, text:label}), inp]);
+}
+function selectField(id, label, value, opts, onchange){
+  var s = h("select", {id:id}); opts.forEach(function(o){ s.appendChild(h("option", {value:o[0], text:o[1]})); }); s.value = String(value);
+  s.addEventListener("change", function(){ onchange(s.value); });
+  return h("div", {class:"field"}, [h("label", {for:id, text:label}), s]);
+}
+function renderProfile(app){
+  var P = S.profile;
+  var panel = h("section", {class:"panel"}, [h("h2", {text:"Профиль и настройки"})]);
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Старт и максимумы"}),
+    h("div", {class:"fields"}, [
+      field("p-start", "Дата первой смены (день 1)", P.start, function(v){ P.start = v; save("settings"); var t = todayIdx(); if(t) UI.day = t; render(true); }, {type:"date"}),
+      field("p-bench", "Жим лёжа: максимум, кг", P.bench, function(v){ P.bench = v; save("settings"); }, {inputmode:"decimal"}),
+      field("p-squat", "Присед: максимум, кг (если знаешь)", P.squat, function(v){ P.squat = v; save("settings"); }, {inputmode:"decimal"}),
+      field("p-dl", "Становая: максимум, кг (если знаешь)", P.dl, function(v){ P.dl = v; save("settings"); }, {inputmode:"decimal"}),
+      field("p-bw", "Вес тела, кг", P.bw, function(v){ P.bw = v; save("settings"); }, {inputmode:"decimal"})
+    ]),
+    h("p", {class:"small muted", text:"Максимумы нужны только для старта. Дальше приложение само оценивает максимум по каждому записанному подходу (вес, повторы, RPE) и подбирает вес."})
+  ]));
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Шаг весов в твоём зале"}),
+    h("div", {class:"fields"}, [
+      selectField("p-sdb", "Гантели, шаг", P.stepDb, [["1","1 кг"],["2","2 кг"],["2.5","2,5 кг"]], function(v){ P.stepDb = +v; save("settings"); }),
+      selectField("p-smach", "Тренажёры и блоки, шаг", P.stepMach, [["2.5","2,5 кг"],["5","5 кг"],["7.5","7,5 кг"]], function(v){ P.stepMach = +v; save("settings"); })
+    ]), h("p", {class:"small muted", text:"Штанга — всегда шаг 2,5 кг (по 1,25 с каждой стороны)."})]));
+  var watchCard = h("div", {class:"card"}, [h("h3", {text:"Сигналы и часы Huawei GT 5"}),
+    h("div", {class:"fields"}, [
+      selectField("p-sound", "Звук на телефоне", P.sound ? "1" : "0", [["1","Включён"],["0","Выключен"]], function(v){ P.sound = v === "1"; save("settings"); }),
+      NATIVE ? selectField("p-watch", "Уведомления на часы", P.watch, [["rest","Конец отдыха и конец интервалов"],["all","Плюс каждая смена отрезка"],["off","Выключены"]], function(v){ P.watch = v; save("settings"); }) : null
+    ])]);
+  if(NATIVE){
+    watchCard.appendChild(h("div", {class:"row"}, [
+      h("button", {type:"button", class:"btn", text:"Проверить сигнал (через 5 с)", onclick:function(){ alertAt(9, Date.now() + 5000, "Проверка сигнала", "Если это видно на часах — всё настроено"); toast("Через 5 секунд придёт уведомление"); }}),
+      h("button", {type:"button", class:"btn ghost", text:"Уведомления приложения", onclick:function(){ try{ NATIVE.openNotificationSettings(); }catch(e){} }}),
+      h("button", {type:"button", class:"btn ghost", text:"Батарея и автозапуск", onclick:function(){ try{ NATIVE.openBatterySettings(); }catch(e){} }})
+    ]));
+    var exact = true; try{ exact = NATIVE.exactAlarmsAllowed(); }catch(e){}
+    if(!exact) watchCard.appendChild(h("div", {class:"row"}, [h("p", {class:"small grow", text:"Точные сигналы выключены системой — уведомление может опаздывать на минуту."}), h("button", {type:"button", class:"btn sm", text:"Разрешить", onclick:function(){ try{ NATIVE.openExactAlarmSettings(); }catch(e){} }})]));
+    watchCard.appendChild(h("ol", {class:"steps"}, [
+      "Нажми «Проверить сигнал». Если телефон спросит разрешение на уведомления — разреши.",
+      "В Huawei Health: Устройства → твои часы → Уведомления → включи уведомления и отметь в списке приложение «Брюс Ли 3.0».",
+      "На Realme: Настройки → Приложения → «Брюс Ли 3.0» → Батарея → разреши работу в фоне и автозапуск. Иначе система может задерживать сигналы, когда экран выключен.",
+      "Снова нажми «Проверить сигнал» и выключи экран: через 5 с часы должны завибрировать с текстом «Проверка сигнала».",
+      "На тренировке запускай на часах режим силовой тренировки (или нужный кардиорежим) — часы будут писать пульс, а сигналы отдыха придут из приложения."
+    ].map(function(t, i){ return h("li", {class:"step"}, [h("span", {class:"lab", text:String(i + 1)}), h("div", {class:"st small", text:t})]); })));
+  } else {
+    watchCard.appendChild(h("p", {class:"small", text:"В веб-версии сигнал звучит только на телефоне. Уведомления на часы GT 5 отправляет Android-приложение: установи APK из раздела Releases на GitHub."}));
+  }
+  panel.appendChild(watchCard);
+  // день 0
+  var d0 = S.d0;
+  function f0(id, label, ph){ return field("d0-" + id, label, d0[id], function(v){ d0[id] = v; save("settings"); }, {placeholder:ph || ""}); }
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"День 0 — до старта"}),
+    plain(["<b>Врач:</b> ЭКГ, лучше с нагрузкой; давление, липидограмма, глюкоза или HbA1c, АЛТ/АСТ, ТТГ, ферритин, витамин D.", "Боль в груди, сильная одышка, головокружение или перебои в сердце на тренировке — стоп и к врачу.", "<b>Купить:</b> бинты и перчатки 14–16 oz, кистевой эспандер, пульсометр, кухонные весы, креатин."]),
+    h("p", {class:"small muted", text:"Исходные цифры — их сравнишь с тестами в циклах 12 и 35. Тесты на велотренажёре всегда на одном и том же тренажёре и уровне."}),
+    h("div", {class:"fields"}, [f0("weight", "Вес утром, кг"), f0("waist", "Талия, см"), f0("rhr", "Пульс покоя"), f0("bp", "Давление"), f0("pullups", "Подтягивания на максимум", "повт. / противовес"), f0("pushups", "Отжимания на максимум"), f0("sprint", "Велоспринт 8 с, ватты"), f0("bike12", "Вело 12 мин", "дистанция / уровень / пульс"), f0("plank", "Боковая планка, с", "лев / прав"), f0("thomas", "Тест Томаса", "ложится ли бедро")])
+  ]));
+  // помощь
+  var rows = [[1,89,92,96],[2,86,89,92],[3,84,86,89],[4,81,84,86],[5,79,81,84],[6,76,79,81],[8,72,74,76]];
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Как читать план"}), plain([
+    "<b>День 1</b> — твоя первая смена после выходных. Цикл 2/2: смена 1 (сессия C) → смена 2 (восстановление) → выходной 1 (A) → выходной 2 (B). 140 дней = 35 циклов.",
+    "<b>Пары 4a / 4b</b> — суперсет: подход 4a, сразу подход 4b, отдых, снова 4a. Пара всегда «одна станция + упражнение рядом без станции».",
+    "<b>Подход:</b> вес уже подставлен — проверь, сделай, впиши повторы и RPE, нажми ○. Запустится отдых, а следующий вес пересчитается по правилу: легче цели — +2,5–5%, тяжелее — −5%.",
+    "<b>Если занято</b> — в каждой карточке. Ждать дольше 3 минут не нужно, бери замену.",
+    "<b>Пропустил день</b> — не делай две тренировки подряд, просто сдвинь план. Выпал один выходной — делай ту тренировку, которая была давно."
+  ]), h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Повторы"}), h("th", {class:"r", text:"RPE 7"}), h("th", {class:"r", text:"RPE 8"}), h("th", {class:"r", text:"RPE 9"})])]),
+    h("tbody", {}, rows.map(function(r){ return h("tr", {}, [h("td", {text:String(r[0])}), h("td", {class:"r", text:r[1] + "%"}), h("td", {class:"r", text:r[2] + "%"}), h("td", {class:"r", text:r[3] + "%"})]); }))])]),
+    h("p", {class:"small muted", text:"RPE 7 — в запасе 3 повтора, 8 — 2, 9 — 1. До отказа не работаем."}),
+    h("h3", {text:"Саморегуляция"}), plain(["Сон меньше 6 ч или пульс покоя на 7+ уд/мин выше обычного — убери треть подходов, интервалы замени зоной 2.", "Боль в суставе больше 3 из 10 или нарастает — бери замену из карточки.", "Две плохие тренировки подряд — внеплановый разгрузочный цикл.", "Давление перед тренировкой выше 160/100 — только зона 2 и визит к врачу."])
+  ]));
+  // резервная копия
+  var imp = h("input", {type:"file", accept:".json,application/json,text/plain", style:"display:none", id:"imp"});
+  imp.addEventListener("change", function(){ var f = imp.files && imp.files[0]; if(!f) return; var rd = new FileReader(); rd.onload = function(){ importData(rd.result); }; rd.readAsText(f); });
+  var ta = h("textarea", {placeholder:"Или вставь сюда текст резервной копии", "aria-label":"Текст резервной копии"});
+  var backup = h("div", {class:"card"}, [h("h3", {text:"Резервная копия"}), h("p", {class:"small muted", text:NATIVE ? "Записи хранятся в телефоне. Делай копию раз в неделю: она сохранится в «Загрузки». Обновления приложения записи не стирают, а удаление — стирает." : "В веб-версии записи хранятся в твоём аккаунте Claude. Копия нужна, чтобы перенести их в Android-приложение."}),
+    h("div", {class:"row"}, [h("button", {type:"button", class:"btn", text:"Сохранить копию", onclick:exportData}), h("button", {type:"button", class:"btn ghost", text:"Загрузить из файла", onclick:function(){ imp.click(); }}), imp]),
+    h("div", {class:"field"}, [ta]), h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Загрузить из текста", onclick:function(){ importData(ta.value); }})])]);
+  panel.appendChild(backup);
+  panel.appendChild(h("p", {class:"tiny muted", text:"Брюс Ли 3.0" + (NATIVE ? " · версия " + safeVersion() : " · веб-версия")}));
+  app.appendChild(panel);
+}
+function safeVersion(){ try{ return NATIVE.version(); }catch(e){ return ""; } }
+function exportData(){
+  var json = JSON.stringify({app:"bl3", v:2, saved:new Date().toISOString(), data:S});
+  var name = "bruce-lee-3-" + isoToday() + ".json";
+  if(NATIVE){ var p = ""; try{ p = NATIVE.saveBackup(json, name); }catch(e){} toast(p ? "Сохранено: " + p : "Не удалось сохранить файл"); return; }
+  var ta = document.querySelector("textarea[aria-label='Текст резервной копии']"); if(ta){ ta.value = json; ta.select(); }
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).then(function(){ toast("Копия скопирована в буфер обмена"); }, function(){ toast("Текст копии в поле ниже — скопируй его"); });
+  else toast("Текст копии в поле ниже — скопируй его");
+}
+function importData(txt){
+  try{
+    var o = JSON.parse(txt); var d = o && o.data ? o.data : o;
+    if(!d || !d.days) throw new Error("bad");
+    S.profile = Object.assign(S.profile, d.profile || {}); S.days = Object.assign(S.days, d.days || {}); S.d0 = Object.assign(S.d0, d.d0 || {}); if(d.body && d.body.length) S.body = d.body;
+    persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); }
+    toast("Копия загружена"); render();
+  }catch(e){ toast("Не похоже на резервную копию"); }
+}
+
+render();
+connectCloud();
+})();
+</script>
+</body>
+</html>
