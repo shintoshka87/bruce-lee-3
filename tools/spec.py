@@ -15,6 +15,7 @@ for k in "plyo_push pushup_pause dead_bug side_plank knee_raise ab_wheel hyperex
 WT["bike_sprint"] = "watt"
 for k in "band_face_pull band_pull_apart band_curl band_hammer band_ohe band_pallof band_ext_rot band_adduct".split(): WT[k] = "band"
 WT["calf_step"] = "bw"
+WT["lat_raise"] = "db"
 for k in D["ex"]:
     assert k in WT, k
     D["ex"][k]["wt"] = WT[k]
