@@ -105,8 +105,15 @@ def segs_for(cd):
     k, n = cd.get("kind"), cd.get("n")
     S = []
     def add(label, sec, kind, tip=""): S.append(dict(l=label, s=sec, k=kind, t=tip))
-    if k in ("z2", "z2home"):
+    if k in ("z2", "z2home", "z2fin"):
         add("Зона 2", n * 60, "work", "пульс 118–135, можешь говорить фразами")
+    elif k == "serieshome":
+        add("Разминка, легко", 180, "warm")
+        for i in range(1, n + 1):
+            add("Серия %d из %d — легко" % (i, n), 60, "easy")
+            add("Серия %d из %d — СИЛЬНО" % (i, n), 30, "work", "RPE 8 — сильно, но не на пределе")
+            add("Очень легко", 60, "rest")
+        add("Заминка, совсем легко", 180, "easy")
     elif k == "series":
         hard = "RPE 8 — сильно, но не на пределе" if cd.get("inten") == "8" else "максимум"
         add("Разминка, легко", 180, "warm")
