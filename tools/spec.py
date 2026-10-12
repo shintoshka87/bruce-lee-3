@@ -16,6 +16,9 @@ WT["bike_sprint"] = "watt"
 for k in "band_face_pull band_pull_apart band_curl band_hammer band_ohe band_pallof band_ext_rot band_adduct".split(): WT[k] = "band"
 WT["calf_step"] = "bw"
 WT["lat_raise"] = "db"
+for k in "leg_curl_seated lat_raise_cable ohe_cable".split(): WT[k] = "mach"
+for k in "copenhagen dead_hang pogo".split(): WT[k] = "bw"
+WT["band_curl_stretch"] = "band"
 for k in D["ex"]:
     assert k in WT, k
     D["ex"][k]["wt"] = WT[k]
