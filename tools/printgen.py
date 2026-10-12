@@ -161,7 +161,7 @@ def intro_html():
 </div>
 <div class="two">
 <div><b>Заминка — 8 мин</b>%s</div>
-<div><b>Дома после 2-й смены — 32–57 мин</b>%s</div>
+<div><b>Дома после 2-й смены — 35–60 мин</b>%s</div>
 </div>
 <h4>День 0 — до старта</h4>
 <ul class="small">
