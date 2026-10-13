@@ -47,7 +47,7 @@ def rpe_of(load):
 
 
 def spec_for(day, it):
-    ex, sets, load = it["ex"], it["sets"], it["load"]
+    ex, sets, load = it["ex"], it["sets"], it.get("lsrc", it["load"])
     s = dict(wt=WT[ex], unit="reps", side=None, rows=[], rest=rest_sec(it["rest"]),
              pairNext=it["rest"].startswith("без отдыха"), main=ex in MAIN, deload=bool(day["dl"]), test=False)
     rpe = rpe_of(load)
@@ -114,11 +114,11 @@ def segs_for(cd):
         add("Разминка, легко", 180, "warm")
         for i in range(1, n + 1):
             add("Серия %d из %d — легко" % (i, n), 60, "easy")
-            add("Серия %d из %d — СИЛЬНО" % (i, n), 30, "work", "RPE 8 — сильно, но не на пределе")
+            add("Серия %d из %d — СИЛЬНО" % (i, n), 30, "work", "8 из 10 — говоришь только отдельными словами")
             add("Очень легко", 60, "rest")
         add("Заминка, совсем легко", 180, "easy")
     elif k == "series":
-        hard = "RPE 8 — сильно, но не на пределе" if cd.get("inten") == "8" else "максимум"
+        hard = "8 из 10 — говоришь только отдельными словами" if cd.get("inten") == "8" else "максимум"
         add("Разминка, легко", 180, "warm")
         for i in range(1, n + 1):
             add("Серия %d из %d — легко" % (i, n), 60, "easy")
@@ -179,7 +179,7 @@ for day in D["days"]:
     for it in day.get("items", []):
         if "cond" in it:
             it["cond"]["segs"] = segs_for(it["cond"]); continue
-        it["spec"] = spec_for(day, it); cnt += 1
+        it["spec"] = spec_for(day, it); it.pop("lsrc", None); cnt += 1
     if day.get("cond"):
         day["cond"]["segs"] = segs_for(day["cond"])
     if day.get("rope"):

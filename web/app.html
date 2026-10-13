@@ -131,8 +131,8 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:5px}
 .ex details summary{cursor:pointer;color:var(--muted);font-weight:700}
 .ex details > div{display:grid;gap:6px;margin-top:6px}
 .setlist{display:grid;gap:6px}
-.set{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 62px 44px;gap:6px;align-items:center}
-.set.nowt{grid-template-columns:52px minmax(0,1fr) 62px 44px}
+.set{display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1fr) 76px 42px;gap:6px;align-items:center}
+.set.nowt{grid-template-columns:50px minmax(0,1fr) 76px 42px}
 .set.norpe{grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 44px}
 .set.nowt.norpe{grid-template-columns:52px minmax(0,1fr) 44px}
 .set .sl{font-size:12px;line-height:1.15;color:var(--muted);font-weight:700}
@@ -225,7 +225,7 @@ function homeSteps(wall, easy, rk){
     {t:"<b>Растяжка сгибателей бедра</b> — 2 × 40 с на сторону. Техника — как в утреннем ритуале: таз подкручен, ягодица сжата, вперёд всего на 3–5 см.", segs:LR(40,"Сгибатели бедра").concat([{l:"Пауза",s:10,k:"rest"}]).concat(LR(40,"Сгибатели бедра"))},
     {t:"<b>«Открытая книга»</b> — 8 на сторону: лёжа на боку, колени согнуты, разворачивай грудь и верхнюю руку к полу за спиной."},
     {t:"<b>Грудные у стены</b> — 45 с на сторону. Для жимовика с 12-летним стажем это обязательно.", segs:LR(45,"Грудные у стены")},
-    {t:"<b>Присед у стены — " + wall + "</b>, отдых 1–2 мин, ровное дыхание, колени 90–100°. Глубину подбери так, чтобы к концу подхода было тяжело (RPE 7–8). Это самое действенное упражнение для снижения давления по данным исследований.", segs:ws},
+    {t:"<b>Присед у стены — " + wall + "</b>, отдых 1–2 мин, ровное дыхание, колени 90–100°. Глубину подбери так, чтобы к концу подхода было тяжело: ещё 20–30 с ты бы выдержал, но не больше. Это самое действенное упражнение для снижения давления по данным исследований.", segs:ws},
     {t:"<b>Поза ребёнка</b> — 1 мин медленного дыхания.", segs:[{l:"Поза ребёнка",s:60,k:"easy"}]}
   ];
 }
@@ -379,15 +379,15 @@ function suggest(day, it, idx){
     if(sp.deload){
       var ss = sessions(it.ex, day.d);
       if(ss.length){ var mx = 0; doneSets(ss[0].sets).forEach(function(s){ if(s.w > mx) mx = s.w; }); if(mx) return {w:rnd(mx * 0.9, step, wt), why:"рабочий вес дня " + ss[0].d + " (" + fkg(mx) + " кг) − 10%"}; }
-      return {w:null, why:"нет записей прошлого цикла — RPE 6"};
+      return {w:null, why:"нет записей прошлого цикла — бери вес с запасом 4+"};
     }
     var L = latestE1rm(it.ex, day.d);
     if(!L && it.ex === "deadlift"){ var R = latestE1rm("rdl", day.d); if(R) L = {e:R.e * 1.15, s:null, rough:true}; }
-    if(!L) return {w:null, why:"первый раз — подбери по ориентиру и RPE, дальше посчитаю сам"};
+    if(!L) return {w:null, why:"первый раз — подбери по ориентиру и запасу повторов, дальше посчитаю сам"};
     var rpeT = row.rpe || 8, reps = row.hi || row.lo;
     var w2 = rnd(L.e * pct(reps, rpeT) / 100, step, wt);
     var src = L.s ? "по дню " + L.s.d : (L.rough ? "примерно, по румынской тяге" : "по максимуму из профиля");
-    return {w:w2, why:"оценка максимума " + fkg(Math.round(L.e)) + " кг (" + src + ") → " + reps + " повт. на RPE " + fkg(rpeT), e1:L.e};
+    return {w:w2, why:"оценка максимума " + fkg(Math.round(L.e)) + " кг (" + src + ") → " + reps + " повт. с запасом " + rirTxt(rpeT), e1:L.e};
   }
   // подсобка: двойная прогрессия
   var hs = sessions(it.ex, day.d);
@@ -405,7 +405,7 @@ function suggest(day, it, idx){
   var allTop = ds.length >= Math.min(2, (last.it.spec.rows || []).length) && ds.every(function(s){ return s.r != null && s.r >= (row.hi || 0); });
   var lows = ds.filter(function(s){ return s.r != null && row.lo && s.r < row.lo; }).length;
   if(row.lo === row.hi && row.rpe && avg){
-    if(avg <= row.rpe - 1) return {w:rnd(W + dirA * step, step, wt), why:"в день " + last.d + " было легко (RPE " + fkg(Math.round(avg*10)/10) + ") — шаг вверх"};
+    if(avg <= row.rpe - 1) return {w:rnd(W + dirA * step, step, wt), why:"в день " + last.d + " было легко (запас " + rirTxt(Math.round(avg)) + ") — шаг вверх"};
     if(avg >= row.rpe + 1) return {w:rnd(W - dirA * step, step, wt), why:"в день " + last.d + " было тяжело — шаг вниз"};
     return {w:W, why:"как в день " + last.d};
   }
@@ -598,6 +598,20 @@ function h(tag, attrs, kids){
   (kids || []).forEach(function(c){ if(c === null || c === undefined || c === false) return; el.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
   return el;
 }
+function rirTxt(r){ if(r == null) return ""; if(r <= 6) return "4+"; var lo = Math.floor(10 - r + 1e-9), hi = Math.ceil(10 - r - 1e-9); return lo === hi ? String(lo) : lo + "–" + hi; }
+var RIR_OPTS = [["", "запас"], ["6", "🟢 4+"], ["7", "🟢 3"], ["8", "🟡 2"], ["9", "🟠 1"], ["10", "🔴 0"]];
+function rirGuide(open){
+  return det("Как понять, что вес правильный: «запас повторов»", [plain([
+    "<b>Запас</b> — сколько ещё повторов ты сделал бы чисто, если бы не остановился. Цифру угадывать не нужно: смотри, <b>как двигался вес в последних повторах</b>.",
+    "🟢 <b>4+</b> — все повторы одинаково быстрые, дыхание спокойное. Для рабочего подхода легко (нормально только во вводных и разгрузочных циклах).",
+    "🟢 <b>3</b> — последний повтор чуть медленнее первого, техника идеальная.",
+    "🟡 <b>2</b> — последние 1–2 повтора заметно медленнее, приходится собраться, но техника не меняется. <b>Главная цель большинства подходов.</b>",
+    "🟠 <b>1</b> — последний повтор «ползёт»: ещё один ты бы сделал, но точно последний.",
+    "🔴 <b>0</b> — повтор встал или техника поплыла: прогиб, перекос, рывок корпусом. Так не делаем.",
+    "После подхода выбери в строке подхода, на что это было похоже. Приложение само поправит вес: легче цели — прибавит, тяжелее — убавит. Не выбрал — посчитает, что попал в цель.",
+    "<b>Проверка себя.</b> Первые две недели в последнем подходе на тренажёре (сгибания ног, махи на блоке, канат из-за головы) после нужных повторов продолжи, пока скорость держится, и посчитай лишние. Так увидишь свой настоящий запас — обычно он больше, чем кажется. На штанге так не проверяй."
+  ])], open);
+}
 function plain(list){ return h("ul", {class:"plain"}, list.map(function(t){ return h("li", {html:t}); })); }
 function sec(title, kids, id){ return h("section", {class:"sec", id:id || null}, [h("h4", {text:title})].concat(kids)); }
 function det(title, kids, open, id){ var d = h("details", {class:"sec", id:id || null}, [h("summary", {text:title})].concat(kids)); if(open) d.open = true; return d; }
@@ -700,7 +714,7 @@ function renderDay(day){
     ] : ["Эспандер — 3 подхода на руку, легче, чем вчера.", "Движение каждые 60–90 мин. Вода около 2 л. Креатин 3–5 г."])]));
   }
   if(day.k === "C"){
-    card.appendChild(sec("После смены — дома, " + day.time.replace(/^.*\+ /, "").replace(" дома", ""), [h("p", {class:"small muted", text:"Нужны велотренажёр, резина, стена и ступенька. Первые 3 мин на велотренажёре и есть разминка. Резину закрепи за ручку закрытой двери или дверным якорем. Пары «a/b»: подход a, сразу подход b, потом отдых. Резину прогрессируй так: туже лента, сложить вдвое или шаг дальше от крепления."}), exList(day)], "sec-main"));
+    card.appendChild(sec("После смены — дома, " + day.time.replace(/^.*\+ /, "").replace(" дома", ""), [h("p", {class:"small muted", text:"Нужны велотренажёр, резина, стена и ступенька. Первые 3 мин на велотренажёре и есть разминка. Резину закрепи за ручку закрытой двери или дверным якорем. Пары «a/b»: подход a, сразу подход b, потом отдых. Резину прогрессируй так: туже лента, сложить вдвое или шаг дальше от крепления."}), rirGuide(day.c <= 3), exList(day)], "sec-main"));
     card.appendChild(sec("Нет сил или спал меньше 6 ч", [h("p", {text:"Только 20 мин на велотренажёре и присед у стены. Совсем плохо — прогулка 30 мин вместо тренировки."})]));
   }
   if(day.k === "R"){
@@ -716,7 +730,7 @@ function renderDay(day){
     var ramp = rampFor(day);
     warm.push({t:"<b>Подводящие к первому силовому:</b> гриф × 8 → 50% × 5 → 70% × 3 → 85% × 1–2." + (ramp ? "<br><span class='small'>Сегодня: " + ramp + ".</span>" : "")});
     card.appendChild(det("Разминка — 12 мин, без исключений", [stepsBlock(day, "warm", warm), h("p", {class:"small muted", text:"Ли повредил крестцовый нерв, сделав «доброе утро» с весом своего тела без разминки. Разминка — половина защиты от травм в 39 лет."})], false, "sec-warm"));
-    card.appendChild(sec(day.test ? "Тесты" : "Основная часть", [exList(day)], "sec-ex"));
+    card.appendChild(sec(day.test ? "Тесты" : "Основная часть", [rirGuide(day.c <= 3), exList(day)], "sec-ex"));
     if(day.cond) card.appendChild(sec(day.k === "A" ? (day.test ? "Заминка" : "Аэробный финиш") : "Кондиция", [condCard(day, day.cond, "c-main")]));
     card.appendChild(det("Заминка и растяжка — 8 мин", [stepsBlock(day, "cool", COOLDOWN)]));
     if(!day.test) card.appendChild(sec("Мини-версия на тяжёлый день", [h("p", {text:"Разминка, первые два основных упражнения из плана и 10 мин зоны 2. Это лучше, чем пропуск."})]));
@@ -788,7 +802,7 @@ function rowTarget(sp, row){
   if(row.kind === "amrap") return row.off ? "макс − " + row.off : "максимум";
   if(sp.unit === "sec") return (row.hi ? (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " с" : "на время") + side;
   if(sp.unit === "m") return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " м";
-  return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повт." + side + (row.rpe ? " · RPE " + fkg(row.rpe) : "");
+  return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повт." + side + (row.rpe ? " · запас " + rirTxt(row.rpe) : "");
 }
 
 function exCard(day, it, idx){
@@ -830,7 +844,7 @@ function setRow(day, it, idx, i, row, arr, hasW, hasRpe, timed, wtUnit){
   var fixed = row.lo != null && row.lo === row.hi;
   rIn = h("input", {type:"text", inputmode:"numeric", placeholder:timed ? "с" : (row.kind === "amrap" ? "повт." : (row.lo != null ? (fixed ? String(row.hi) : row.lo + "–" + row.hi) : "")), "aria-label":timed ? "секунды" : (sp.unit === "m" ? "метры" : "повторы")});
   rIn.value = st.r != null ? String(st.r) : (fixed && !timed ? String(row.hi) : (timed && row.hi ? String(row.hi) : ""));
-  if(hasRpe){ rpeSel = h("select", {"aria-label":"RPE"}); ["RPE","6","6,5","7","7,5","8","8,5","9","9,5","10"].forEach(function(o, j){ var op = h("option", {value:j === 0 ? "" : o.replace(",", "."), text:o}); rpeSel.appendChild(op); }); rpeSel.value = st.rpe ? String(st.rpe) : ""; }
+  if(hasRpe){ rpeSel = h("select", {"aria-label":"Запас повторов"}); RIR_OPTS.forEach(function(o){ rpeSel.appendChild(h("option", {value:o[0], text:o[1]})); }); rpeSel.value = st.rpe ? String(Math.min(10, Math.max(6, Math.round(st.rpe)))) : ""; }
   var cls = "set" + (hasW ? "" : " nowt") + (hasRpe ? "" : " norpe") + (st.done ? " isdone" : "");
   var ok = h("button", {type:"button", class:"ok", "aria-label":"Подход сделан", text:st.done ? "✓" : "○"});
   var kids = [h("div", {class:"sl"}, [h("b", {text:lbl[0]}), lbl[1] + (lbl[1] ? " · " : "") + rowTarget(sp, row)])];
@@ -926,7 +940,7 @@ function renderProgress(app){
   ["bench","squat","deadlift","rdl"].forEach(function(ex){ var pts = e1Series(ex); if(pts.length) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:EX[ex].name + " — оценка максимума, кг"}), lineChart(pts, "кг")])); });
   var pu = []; for(var d = 1; d <= 140; d++){ var r = S.days[key(d)]; if(!r || !r.sets) continue; (DAYS[d-1].items || []).forEach(function(it){ if(it.ex !== "pullup") return; var ds = doneSets(r.sets[setKey(it)]).filter(function(s){ return s.w != null; }); if(ds.length) pu.push({d:d, v:Math.min.apply(null, ds.map(function(s){ return s.w; }))}); }); }
   if(pu.length) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Подтягивания — противовес гравитрона, кг (меньше — лучше)"}), lineChart(pu, "кг")]));
-  if(!kp[1]) panel.appendChild(h("div", {class:"card"}, [h("p", {class:"muted", text:"Графики появятся после первых записанных подходов в приседе, жиме и тяге: приложение считает оценку максимума по весу, повторам и RPE."})]));
+  if(!kp[1]) panel.appendChild(h("div", {class:"card"}, [h("p", {class:"muted", text:"Графики появятся после первых записанных подходов в приседе, жиме и тяге: приложение считает оценку максимума по весу, повторам и запасу."})]));
   // тело
   var bw = h("input", {type:"text", inputmode:"decimal", id:"b-w", placeholder:"кг"}), ws = h("input", {type:"text", inputmode:"decimal", id:"b-ws", placeholder:"см"}), dtI = h("input", {type:"date", id:"b-dt"}); dtI.value = isoToday();
   var add = h("button", {type:"button", class:"btn", text:"Добавить", onclick:function(){ var w = pnum(bw.value), x = pnum(ws.value); if(w == null && x == null){ toast("Впиши вес или талию"); return; } S.body.push({date:dtI.value || isoToday(), w:w, waist:x}); S.body.sort(function(a, b){ return a.date < b.date ? -1 : 1; }); save("body"); render(true); }});
@@ -1004,7 +1018,7 @@ function renderProfile(app){
       field("p-dl", "Становая: максимум, кг (если знаешь)", P.dl, function(v){ P.dl = v; save("settings"); }, {inputmode:"decimal"}),
       field("p-bw", "Вес тела, кг", P.bw, function(v){ P.bw = v; save("settings"); }, {inputmode:"decimal"})
     ]),
-    h("p", {class:"small muted", text:"Максимумы нужны только для старта. Дальше приложение само оценивает максимум по каждому записанному подходу (вес, повторы, RPE) и подбирает вес."})
+    h("p", {class:"small muted", text:"Максимумы нужны только для старта. Дальше приложение само оценивает максимум по каждому записанному подходу (вес, повторы, запас) и подбирает вес."})
   ]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Шаг весов в твоём зале"}),
     h("div", {class:"fields"}, [
@@ -1047,6 +1061,7 @@ function renderProfile(app){
   var rows = [[1,89,92,96],[2,86,89,92],[3,84,86,89],[4,81,84,86],[5,79,81,84],[6,76,79,81],[8,72,74,76]];
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 3"}), plain([
     "Упражнения перепроверены по исследованиям 2015–2026 годов.",
+    "<b>Вес — по «запасу повторов»</b> вместо RPE: после подхода выбираешь 🟢 4+, 🟢 3, 🟡 2, 🟠 1 или 🔴 0 — сколько ещё повторов сделал бы чисто. Подсказка с признаками — в каждой тренировке.",
     "<b>Тренировка A:</b> сгибания ног сидя и копенгагенская планка вместо Т-грифа и боковой планки — закрыт главный пробел, задняя поверхность бедра и приводящие.",
     "<b>Тренировка B:</b> велоспринты 6 с в начале — скорость без ударной нагрузки; вис на перекладине; махи на нижнем блоке + разгибания каната из-за головы (трицепс растёт сильнее, чем в разгибаниях вниз). Норвежские 4×4 — в двух циклах из трёх.",
     "<b>Дома:</b> сгибания с резиной в растянутом положении, Паллоф-пресс, присед у стены по дозе из исследований — 4 × 2 мин.",
@@ -1056,13 +1071,13 @@ function renderProfile(app){
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Как читать план"}), plain([
     "<b>День 1</b> — твоя первая смена после выходных. Цикл 2/2: смена 1 (сессия C) → смена 2 (восстановление) → выходной 1 (A) → выходной 2 (B). 140 дней = 35 циклов.",
     "<b>Пары 4a / 4b</b> — суперсет: подход 4a, сразу подход 4b, отдых, снова 4a. Пара всегда «одна станция + упражнение рядом без станции».",
-    "<b>Подход:</b> вес уже подставлен — проверь, сделай, впиши повторы и RPE, нажми ○. Запустится отдых, а следующий вес пересчитается по правилу: легче цели — +2,5–5%, тяжелее — −5%.",
+    "<b>Подход:</b> вес уже подставлен — проверь, сделай, впиши повторы, выбери запас (🟢 4+ … 🔴 0) и нажми ○. Запустится отдых, а следующий вес пересчитается: легче цели — +2,5–5%, тяжелее — −5%.",
     "<b>Если занято</b> — в каждой карточке. Ждать дольше 3 минут не нужно, бери замену.",
     "<b>Пропустил день</b> — не делай две тренировки подряд, просто сдвинь план. Выпал один выходной — делай ту тренировку, которая была давно.", "<b>Вторая смена ночная</b> — поменяй местами A и B: в первый выходной после сна — B, тяжёлый низ — во второй выходной.", "<b>Вес</b> уходит быстрее 0,7% в неделю (около 0,6 кг) две недели подряд — добавь 150 ккал за счёт углеводов: при слишком большом дефиците мышцы не сохраняются."
-  ]), h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Повторы"}), h("th", {class:"r", text:"RPE 7"}), h("th", {class:"r", text:"RPE 8"}), h("th", {class:"r", text:"RPE 9"})])]),
+  ]), h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Повторы"}), h("th", {class:"r", text:"запас 3"}), h("th", {class:"r", text:"запас 2"}), h("th", {class:"r", text:"запас 1"})])]),
     h("tbody", {}, rows.map(function(r){ return h("tr", {}, [h("td", {text:String(r[0])}), h("td", {class:"r", text:r[1] + "%"}), h("td", {class:"r", text:r[2] + "%"}), h("td", {class:"r", text:r[3] + "%"})]); }))])]),
-    h("p", {class:"small muted", text:"RPE 7 — в запасе 3 повтора, 8 — 2, 9 — 1. До отказа не работаем."}),
-    h("h3", {text:"Светофор готовности — каждое утро"}), plain(["Три признака: сон меньше 6 ч; пульс покоя на 7+ уд/мин выше твоего обычного; ноги тяжёлые или настроение «никак» по шкале ниже 5 из 10.", "<b>Зелёный</b> (ни одного признака) — всё по плану.", "<b>Жёлтый</b> (один признак) — интервалы, серии и раунды замени зоной 2 той же длины; велоспринты и прыжки пропусти; в силовой убери по подходу в каждом упражнении, топ-сеты не выше RPE 8.", "<b>Красный</b> (два-три признака или болезнь) — только прогулка 30 мин и растяжка. Пропущенное не догоняй.", "Боль в суставе больше 3 из 10 или нарастает — бери замену из карточки.", "Две плохие тренировки подряд — внеплановый разгрузочный цикл.", "Давление перед тренировкой выше 160/100 — только зона 2 и визит к врачу."])
+    h("p", {class:"small muted", text:"Процент от максимума для повторов с разным запасом. По нему приложение подбирает вес. До отказа не работаем."}), rirGuide(false),
+    h("h3", {text:"Светофор готовности — каждое утро"}), plain(["Три признака: сон меньше 6 ч; пульс покоя на 7+ уд/мин выше твоего обычного; ноги тяжёлые или настроение «никак» по шкале ниже 5 из 10.", "<b>Зелёный</b> (ни одного признака) — всё по плану.", "<b>Жёлтый</b> (один признак) — интервалы, серии и раунды замени зоной 2 той же длины; велоспринты и прыжки пропусти; в силовой убери по подходу в каждом упражнении, топ-сеты с запасом не меньше 2.", "<b>Красный</b> (два-три признака или болезнь) — только прогулка 30 мин и растяжка. Пропущенное не догоняй.", "Боль в суставе больше 3 из 10 или нарастает — бери замену из карточки.", "Две плохие тренировки подряд — внеплановый разгрузочный цикл.", "Давление перед тренировкой выше 160/100 — только зона 2 и визит к врачу."])
   ]));
   // резервная копия
   var imp = h("input", {type:"file", accept:".json,application/json,text/plain", style:"display:none", id:"imp"});
