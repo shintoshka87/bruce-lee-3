@@ -19,6 +19,7 @@ WT["lat_raise"] = "db"
 for k in "leg_curl_seated lat_raise_cable ohe_cable".split(): WT[k] = "mach"
 for k in "copenhagen dead_hang pogo".split(): WT[k] = "bw"
 WT["band_curl_stretch"] = "band"
+for k in "incline_curl rear_fly_incline calf_db".split(): WT[k] = "db"
 for k in D["ex"]:
     assert k in WT, k
     D["ex"][k]["wt"] = WT[k]
