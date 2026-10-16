@@ -315,7 +315,7 @@ function sessions(ex, beforeDay, max){
   var out = [];
   for(var d = beforeDay - 1; d >= 1; d--){
     var r = S.days[key(d)]; if(!r || !r.sets) continue;
-    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex) return; var sets = r.sets[setKey(it)]; if(doneSets(sets).length) out.push({d:d, it:it, sets:sets}); });
+    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex || it.spec.light) return; var sets = r.sets[setKey(it)]; if(doneSets(sets).length) out.push({d:d, it:it, sets:sets}); });
     if(out.length >= (max || 6)) break;
   }
   return out;
@@ -926,7 +926,7 @@ function e1Series(ex){
   var out = [];
   for(var d = 1; d <= N; d++){
     var r = S.days[key(d)]; if(!r || !r.sets) continue;
-    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex) return; var e = e1rmOf({it:it, sets:r.sets[setKey(it)] || []}); if(e) out.push({d:d, v:e}); });
+    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex || it.spec.light) return; var e = e1rmOf({it:it, sets:r.sets[setKey(it)] || []}); if(e) out.push({d:d, v:e}); });
   }
   return out;
 }
@@ -1037,7 +1037,10 @@ function renderProfile(app){
   ]), rirGuide(false)]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 4"}), plain([
     "Программа полностью заменена: <b>180 дней по упражнениям из книги Ли</b>, круговые тренировки на «Марси» не взяты.",
-    "Силовая — 1 раз за цикл (около 2 в неделю), выносливость — 3 раза за цикл (5–6 в неделю).",
+    "<b>Обновление:</b> в каждой силовой — оба главных движения: в «А» к тяжёлому приседу добавлена лёгкая становая, в «Б» к тяжёлой становой — лёгкий присед; подтягивания в оба дня; бицепс, трицепс и махи в стороны — вдвое меньше подходов.",
+    "Бой с тенью 2 × 3 мин в оба рабочих дня; во второй рабочий день — ещё 20 мин лёгкого велотренажёра (только в «зелёный» день).",
+    "В Фазах 2–3 — броски медбола для силы удара; в Фазе 3 питание на поддержании (мягкий дефицит, если до цели по талии больше 2–3 см).",
+    "Силовая — 1 раз за цикл (около 2 в неделю); выносливость — каждый день: Зона 2 после первой смены и после силовой, лёгкий велотренажёр после второй смены, раунды и бег в день боя.",
     "Бой каждый цикл: груша, бой с тенью, удары ногами, программа Ли для Хартселла и его личная программа раундов.",
     "Контрольные тесты в Цикле 0 и в Дни 57–60, 117–120, 177–180 — таблица во вкладке «Прогресс».",
     "Записи прошлой версии не удалены: они хранятся отдельно и в новый план не попадают."
