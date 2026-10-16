@@ -24,7 +24,7 @@ public class AlertReceiver extends BroadcastReceiver {
         MainActivity.createChannel(c);
         String title = intent.getStringExtra("title");
         String text = intent.getStringExtra("text");
-        if (title == null) title = "Брюс Ли 3.0";
+        if (title == null) title = "Брюс Ли 4.0";
         if (text == null) text = "";
 
         Intent open = new Intent(c, MainActivity.class);

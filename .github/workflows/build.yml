@@ -27,15 +27,16 @@ jobs:
         run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Name the file
-        run: cp app/build/outputs/apk/release/app-release.apk "BruceLee3-1.0.${{ github.run_number }}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "BruceLee-4.0.${{ github.run_number }}.apk"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Брюс Ли 3.0 — версия 1.0.${{ github.run_number }}
+          tag_name: v4.0.${{ github.run_number }}
+          name: Брюс Ли 4.0 — версия 4.0.${{ github.run_number }}
           body: |
-            Скачай файл BruceLee3-1.0.${{ github.run_number }}.apk на телефон и открой его, чтобы установить.
-            Обновление ставится поверх прошлой версии, записи сохраняются.
-          files: BruceLee3-1.0.${{ github.run_number }}.apk
+            Программа 4.0: 180 дней по книге Брюса Ли, график 2/2.
+            Скачай файл BruceLee-4.0.${{ github.run_number }}.apk на телефон и открой его, чтобы установить.
+            Обновление ставится поверх прошлой версии: профиль, вес тела и настройки сохраняются.
+          files: BruceLee-4.0.${{ github.run_number }}.apk
           make_latest: true
