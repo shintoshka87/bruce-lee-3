@@ -157,11 +157,13 @@ def stretch_segs(positions, H):
     return segs
 
 
-D3_STRETCH = [('Нога на опоре вперёд', 2), ('Нога на опоре в сторону', 2), ('Растяжение паха сидя', 1), ('Растяжение в выпаде', 2)]
-D4_STRETCH = [('Подколенные сухожилия — наклон к прямым ногам', 1), ('Растяжение бедра — пятка к ягодице', 2), ('Растяжение в выпаде', 2),
-              ('Растяжение лодыжек у стены', 2), ('Боковое растяжение', 2), ('Расслабление плеч', 20)]
-D1_STRETCH = [('Растяжение бедра стоя — колено к груди', 2), ('Растяжение бедра — пятка к ягодице', 2), ('Растяжение в выпаде', 2),
-              ('Растяжение лодыжек у стены', 2), ('Боковое растяжение', 2)]
+D3_STRETCH = [('Подколенные — нога на опоре', 2), ('Выпад — сгибатели бедра', 2), ('«Бабочка» — пах', 1), ('Икры у стены', 2)]
+D4_STRETCH = [('Подколенные — наклон к прямым ногам', 1), ('Выпад — сгибатели бедра', 2), ('Ягодичная лёжа — колено к противоположному плечу', 2),
+              ('Грудь и плечи — у стены', 2)]
+# день восстановления: спокойная растяжка всего тела, 15 мин
+RECOVERY_STRETCH = [('«Кошка–корова» — 8 медленных раз', 40), ('Наклон к прямым ногам', 1), ('Выпад с коленом на полу — сгибатели бедра', 2),
+                    ('Ягодичная лёжа — колено к противоположному плечу', 2), ('«Бабочка» — пах', 1), ('Икры у стены', 2),
+                    ('Грудь в дверном проёме', 1), ('Плечо — рука поперёк груди', 2), ('«Поза ребёнка»', 1)]
 
 
 def stretch_cond(title, positions, H, how):
@@ -190,142 +192,81 @@ def morning_steps():
 
 
 SHIFT_TIPS = ['Лестница вместо лифта, пешком при любой возможности.',
-              'Стой на одной ноге, когда обуваешься или ждёшь.',
-              'Стакан воды каждый час, кофеин — только до 12:00.',
-              'Совет Ли о бдительности (с. 208): представь, что противник атакует тебя сидящего или стоящего, и придумай самую простую контратаку.']
+              'Стакан воды каждый час. Кофеин — не позже чем за 8 часов до сна и в меру: он усиливает тревогу.',
+              'Еда — из контейнеров: белок в каждом приёме.']
+NIGHT_RULES = ['<b>Перед ночной сменой</b> — сон 20–30 мин.',
+               '<b>Кофеин</b> — только в первой половине смены.',
+               '<b>Домой</b> — в тёмных очках и сразу спать: плотные шторы, прохладная комната. Сон 7–9 часов за сутки, можно в два приёма.',
+               '<b>Тренировка</b> после ночной смены — только после сна, и без интервалов.']
 
 
 def cardio_block(Pp, mp):
     mins, txt = P.cardio(Pp, mp)
-    if Pp == 1:
-        segs = [seg('Зона 2: ходьба в горку или велотренажёр', mins * 60, 'work', 'пульс 108–126, говоришь полными фразами')]
-    elif Pp == 2:
-        warm, n, walk, jog = [(5, 5, 4, 1), (2, 6, 3, 2), (0, 7, 2, 3)][mp - 1]
-        segs = [seg('Ходьба — разогрев', warm * 60, 'easy')] if warm else []
-        for i in range(n):
-            segs += [seg(f'Ходьба {i + 1}/{n}', walk * 60, 'easy', 'пульс 108–126'), seg(f'Трусца {i + 1}/{n}', jog * 60, 'work', 'разговорный темп')]
-    else:
-        jog = mins - 5
-        segs = [seg('Ходьба — разогрев', 300, 'easy'), seg('Трусца без остановок', jog * 60, 'work', 'Зона 2, пульс 108–126')]
+    segs = [seg('Зона 2: велотренажёр или ходьба в горку', mins * 60, 'work', 'пульс 108–126, говоришь полными фразами')]
     return mins, txt, segs
 
 
 def proto_c(c, Pp, mp):
     mins, txt, segs = cardio_block(Pp, mp)
-    H = P.hold(Pp, mp)
     test = c in P.TEST
     if test:
         mins = 30
-        card = {'t': '<b>Калибровка Зоны 2 — 30 мин</b> вместо обычного кардио: быстрая ходьба или велотренажёр в темпе «говорю полными фразами, дышу носом». Запиши средний пульс с 10-й по 30-ю минуту и насколько он вырос к концу — это твоя Зона 2 на ' + ('следующий этап.' if c == 45 else 'следующую фазу.'),
+        card = {'t': '<b>Калибровка Зоны 2 — 30 мин</b> вместо обычного кардио: велотренажёр или быстрая ходьба в темпе «говорю полными фразами, дышу носом». Запиши средний пульс с 10-й по 30-ю минуту и насколько он вырос к концу — это твоя Зона 2 на ' + ('следующий этап.' if c == 45 else 'следующую фазу.'),
                 'segs': [seg('Разогрев до разговорного темпа', 600, 'easy'), seg('Держи темп — запоминай пульс', 1200, 'work', 'средний пульс 10–30 мин')]}
     else:
-        card = {'t': f'<b>Кардио в Зоне 2 — {mins} мин:</b> {txt}. Пульс 108–126.', 'segs': segs}
-    shadow = {'t': '<b>Бой с тенью — 2 × 3 мин</b> в среднем темпе, отдых 1 мин (с. 129–130): двигайся без остановок, руки всё время у головы — плечи и руки работают на выносливость; пульс — до начала Зоны 3.',
-              'segs': [seg('Бой с тенью — раунд 1 из 2', 180, 'work', 'средний темп, без остановок'), seg('Отдых', 60, 'rest'), seg('Бой с тенью — раунд 2 из 2', 180, 'work', 'руки у головы, не стой на месте')]}
-    gym = {'t': '<b>Суставная гимнастика Ли — 5 мин:</b> голова — медленно, полукругом (с. 112; назад не запрокидываем); вращение плечами вперёд и назад по 10 (с. 47); «расслабление плеч» 5 раз (с. 111–112); вращения запястьями (с. 111); вращение в талии с палкой, стоя прямо, — 20 раз (с. 45); таз, колени, стопы — по 5–8 кругов.',
+        card = {'t': f'<b>Зона 2 — {mins} мин:</b> {txt}. Пульс 108–126.', 'segs': segs}
+    gym = {'t': '<b>Суставная гимнастика — 5 мин:</b> голова — медленные полукруги (назад не запрокидываем); вращения плечами вперёд и назад по 10; «расслабление плеч» 5 раз; вращения запястьями; таз, колени, стопы — по 5–8 кругов.',
            'segs': [seg('Голова — полукруги', 40, 'work'), seg('Вращение плечами', 40, 'work'), seg('Расслабление плеч × 5', 30, 'work'),
-                    seg('Вращения запястьями', 30, 'work'), seg('Вращение в талии × 20', 50, 'work'), seg('Таз, колени, стопы', 90, 'work')]}
-    st = {'t': f'<b>Растяжка Ли — 8 мин,</b> по {H} с на сторону, без пружинения: «растяжение бедра стоя» — колено к груди (с. 108); «растяжение бедра» — пятка к ягодице (с. 109); «растяжение в выпаде» (с. 109); «растяжение лодыжек» у стены (с. 109–110); «боковое растяжение» (с. 110).',
-          'segs': stretch_segs(D1_STRETCH, H)}
-    br = {'t': '<b>Перед сном — дыхание животом, 3 мин.</b> Ли: «следует учиться постоянно дышать животом» (с. 118). Вдох носом 4 с, выдох 6 с. Потом в постели — практика «после смены».',
+                    seg('Вращения запястьями', 30, 'work'), seg('Таз, колени, стопы', 90, 'work')]}
+    br = {'t': '<b>Перед сном — дыхание животом, 3 мин.</b> Вдох носом 4 с, выдох 6 с — успокаивает и помогает уснуть.',
           'segs': [seg('Дыхание животом', 180, 'easy', 'вдох 4 с, выдох 6 с')]}
     secs = [
-        {'t': 'steps', 'title': 'Перед сменой — «утренний комплекс» Ли, 3 мин', 'id': 'pre', 'steps': morning_steps(), 'foot': 'Прямо в постели, до подъёма (с. 214).'},
-        {'t': 'list', 'title': 'В течение смены — «ежедневные возможности» Ли', 'lines': SHIFT_TIPS},
-        {'t': 'steps', 'title': f'После смены — ≈ {mins + 23} мин', 'id': 'aft', 'main': True, 'steps': [card, shadow, gym, st, br],
-         'foot': 'Начни в течение часа после смены, закончи за 60–90 мин до сна.'},
+        {'t': 'steps', 'title': 'Перед сменой — «утренний комплекс», 3 мин', 'id': 'pre', 'steps': morning_steps(), 'foot': 'Прямо в постели, до подъёма.'},
+        {'t': 'list', 'title': 'В течение смены', 'lines': SHIFT_TIPS},
+        {'t': 'steps', 'title': f'После смены — ≈ {mins + 8} мин', 'id': 'aft', 'main': True, 'steps': [card, gym, br],
+         'foot': 'Начни в течение часа после смены, закончи за 60–90 мин до сна. После ночной смены — сначала сон.'},
     ]
     if test:
         secs.append({'t': 'tests', 'title': 'Запиши результат калибровки', 'tests': [
             {'id': 'z2', 'name': 'Зона 2: средний пульс с 10-й по 30-ю минуту'}, {'id': 'z2drift', 'name': 'На сколько вырос пульс к концу, уд/мин'}]})
-    secs.append({'t': 'list', 'title': 'Жёлтый или красный день', 'lines': ['<b>Жёлтый:</b> 15 мин спокойной ходьбы и дыхание перед сном.', '<b>Красный:</b> только дыхание и сон.']})
-    return secs, mins + 23
+    secs.append({'t': 'list', 'title': 'Ночная смена', 'lines': NIGHT_RULES, 'collapse': True})
+    secs.append({'t': 'list', 'title': 'Жёлтый или красный день', 'lines': ['<b>Жёлтый:</b> 15–20 мин спокойной ходьбы и дыхание перед сном.', '<b>Красный:</b> только дыхание и сон.']})
+    return secs, mins + 8
 
 
-def flex_segs(prog, H, Pp):
-    rep2 = (Pp == 2)
-    S = []
-
-    def hold(name, sides=1, twice=False):
-        for k in range(2 if twice else 1):
-            nm = name + (' — ещё раз' if k else '')
-            if sides == 2:
-                S.append([seg(nm + ' — левая', H), seg('Смена стороны', 5, 'rest'), seg(nm + ' — правая', H)])
-            else:
-                S.append([seg(nm, H)])
-
-    def swings(name):
-        S.append([seg(name + ' — левая, 8 раз', 25), seg('Смена', 5, 'rest'), seg(name + ' — правая, 8 раз', 25)])
-    if prog == 'А':
-        hold('Наклон вперёд стоя, ноги вместе', twice=rep2)
-        hold('Выпад вперёд — «растяжение при широком шаге»', 2)
-        swings('Выброс ноги вверх')
-        swings('Выброс ноги в сторону')
-        hold('Растяжение паха сидя, стопы вместе', twice=rep2)
-        S.append([seg('Вращение в талии × 20', 40)])
-        hold('Попеременный шпагат на стуле', 2)
-        hold('Наклоны сидя — ноги вместе')
-        hold('Наклоны сидя — ноги врозь')
-        hold('Нога на опоре прямо', 2)
-        hold('Нога на опоре в сторону', 2)
-        S.append([seg('Заднее растяжение — 5 мягких прогибов', 30)])
-    else:
-        swings('Мах вперёд и нога назад на опору')
-        swings('Выброс ноги в сторону')
-        hold('Наклон вперёд стоя', twice=rep2)
-        hold('Паховое растяжение сидя', twice=rep2)
-        S.append([seg('Вращение в талии × 20', 40)])
-        hold('Попеременный шпагат на стуле', 2)
-        hold('Нога на опоре вперёд', 2)
-        hold('Нога на опоре в сторону', 2)
-        hold('Наклоны сидя')
-        hold('Выпад вперёд', 2)
-        hold('Выпад в сторону', 2)
-        hold('Растяжение барьериста — стопа у бедра', 2)
+def recovery_segs(H):
     out = []
-    for i, grp in enumerate(S):
-        out += grp
-        if i < len(S) - 1:
+    for i, (name, sides) in enumerate(RECOVERY_STRETCH):
+        if sides == 2:
+            out += [seg(name + ' — левая', H), seg('Смена стороны', 5, 'rest'), seg(name + ' — правая', H)]
+        else:
+            out.append(seg(name, H if sides == 1 else sides))
+        if i < len(RECOVERY_STRETCH) - 1:
             out.append(seg('Переход', 8, 'rest'))
     return out
 
 
 def proto_r(c, Pp, mp):
-    H = P.hold(Pp, mp)
-    prog = 'А' if c % 2 == 1 else 'Б'
-    abs_ = {1: ['2 × 10', '2 × 12', '2 × 15'][mp - 1], 2: '2 × 15', 3: '2 × 15'}[Pp]
-    flut = {1: [20, 25, 30][mp - 1], 2: 30, 3: 30}[Pp]
-    rock = {1: ['2 × 6', '2 × 8', '2 × 10'][mp - 1], 2: '2 × 10', 3: '2 × 10'}[Pp]
-    reps = '1 раз' if Pp != 2 else '1 раз; задняя поверхность бедра и пах — 2 раза'
-    progtxt = {'А': 'наклон вперёд стоя; выпад вперёд; махи вперёд и в сторону по 8; «растяжение паха» сидя; «вращение в талии» 20 раз; «попеременный шпагат на стуле»; «наклоны сидя» вместе и врозь; нога на опоре прямо и в сторону; «заднее растяжение» — 5 мягких прогибов вместо мостика.',
-               'Б': 'мах вперёд и нога назад на опору; махи в сторону по 8; наклон вперёд стоя; «паховое растяжение сидя»; «вращение в талии»; «попеременный шпагат на стуле»; нога на опоре вперёд и в сторону; «наклоны сидя»; выпад вперёд и в сторону; «растяжение барьериста» в варианте Ли — стопа у внутренней стороны бедра (с. 107).'}[prog]
+    H = {1: 30, 2: 40, 3: 45}[Pp]
     steps = [
-        {'t': '<b>Велотренажёр — 20 мин,</b> лёгкая езда: пульс 100–120 (Зоны 1–2), каденс 80–90 (с. 99). Добавляет к неделе ≈ 35 мин аэробной базы и разогревает мышцы перед растяжкой. Только в «зелёный» день; в жёлтый — 3 мин спокойной езды.',
-         'segs': [seg('Велотренажёр, лёгко', 1200, 'easy', 'пульс 100–120, каденс 80–90')]},
-        {'t': '<b>Разогрев суставов — 2 мин:</b> вращение плечами 10 + 10 (с. 47); «высокий удар ногой» — мах вперёд и мах в сторону, по 8 каждой ногой, высота растёт с каждым махом (с. 45, 186).',
-         'segs': [seg('Вращение плечами', 30, 'work'), seg('Махи вперёд и в сторону', 90, 'work')]},
-        {'t': '<b>Бой с тенью — 2 × 3 мин</b> в лёгком темпе, отдых 1 мин (с. 129–130): разогрев плеч, корпуса и ног перед растяжкой.',
-         'segs': [seg('Бой с тенью — раунд 1 из 2', 180, 'work', 'лёгкий темп'), seg('Отдых', 60, 'rest'), seg('Бой с тенью — раунд 2 из 2', 180, 'work', 'лёгкий темп, дыхание ровное')]},
-        {'t': f'<b>Гибкость Ли — программа {prog}</b> (с. 211–212), удержание {H} с, {reps}: {progtxt} Правила Ли (с. 105): не до боли, не пружинить, дышать ровно.',
-         'segs': flex_segs(prog, H, Pp)},
-        {'t': f'<b>Пресс Ли:</b> «подтягивание колен» лёжа (с. 46) — {abs_}. Поясницу не скручиваем.'},
-        {'t': f'<b>«Попеременное поднимание ног» — ножницы</b> (с. 48, 62) — 2 × {flut} с.',
-         'segs': [seg('Ножницы', flut), seg('Отдых', 30, 'rest'), seg('Ножницы', flut)]},
-        {'t': f'<b>«Качание спинных мышц лёжа»</b> — противоположные рука и нога (с. 186) — {rock} на сторону.'},
-        {'t': '<b>Наклоны в стороны без веса</b> (с. 46) — 2 × 15 на сторону.'},
-        {'t': '<b>«Статическое сокращение» пресса</b> (с. 64) — 5 × 5 с.', 'segs': [x for i in range(5) for x in ([seg(f'Напряги пресс {i + 1}/5', 5)] + ([seg('Отпусти', 5, 'rest')] if i < 4 else []))]},
-        {'t': '<b>Шея — 2 мин:</b> изометрия рукой — лоб, затылок, левый и правый висок, по 2 × 10 с на 30–50% усилия. Замена «борцовскому мостику» Ли (с. 75).',
+        {'t': '<b>Суставная гимнастика — 5 мин:</b> голова — полукруги; вращения плечами, запястьями, тазом, коленями, стопами.',
+         'segs': [seg('Голова — полукруги', 40, 'work'), seg('Вращение плечами', 40, 'work'), seg('Вращения запястьями', 30, 'work'), seg('Таз, колени, стопы', 90, 'work')]},
+        {'t': f'<b>Растяжка — ≈ 15 мин,</b> по {H} с на позицию, без пружинения: «кошка–корова»; наклон к прямым ногам; выпад с коленом на полу; ягодичная лёжа; «бабочка»; икры у стены; грудь в дверном проёме; плечо — рука поперёк груди; «поза ребёнка». Дыши ровно, тянется — но не больно.',
+         'segs': recovery_segs(H)},
+        {'t': '<b>Шея — 2 мин:</b> изометрия рукой — лоб, затылок, левый и правый висок, по 2 × 10 с на 30–50% усилия.',
          'segs': [x for r in range(2) for i, nm in enumerate(['Лоб', 'Затылок', 'Левый висок', 'Правый висок'])
                   for x in ([seg(f'{nm} — давит в ладонь', 10)] + ([seg('Пауза', 5, 'rest')] if not (r == 1 and i == 3) else []))]},
-        {'t': '<b>Финал — 3 мин:</b> дыхание животом. В постели — практика «после смены».', 'segs': [seg('Дыхание животом', 180, 'easy', 'вдох 4 с, выдох 6 с')]},
+        {'t': '<b>Перед сном — дыхание животом, 3 мин.</b> Вдох носом 4 с, выдох 6 с.', 'segs': [seg('Дыхание животом', 180, 'easy', 'вдох 4 с, выдох 6 с')]},
     ]
     secs = [
-        {'t': 'steps', 'title': 'Перед сменой — «утренний комплекс» Ли, 3 мин', 'id': 'pre', 'steps': morning_steps(), 'foot': 'Прямо в постели, до подъёма (с. 214).'},
-        {'t': 'list', 'title': 'В течение смены', 'lines': ['Как в первый рабочий день: лестницы, пешком, стойка на одной ноге, вода, кофеин до 12:00.']},
-        {'t': 'steps', 'title': 'После смены — ≈ 65 мин', 'id': 'aft', 'main': True, 'steps': steps},
-        {'t': 'list', 'title': 'Жёлтый или красный день', 'lines': ['<b>Жёлтый:</b> 3 мин спокойной езды, разогрев суставов, половина программы гибкости, дыхание.', '<b>Красный:</b> только дыхание и сон.']},
+        {'t': 'steps', 'title': 'Перед сменой — «утренний комплекс», 3 мин', 'id': 'pre', 'steps': morning_steps(), 'foot': 'Прямо в постели, до подъёма.'},
+        {'t': 'list', 'title': 'В течение смены', 'lines': SHIFT_TIPS},
+        {'t': 'steps', 'title': 'После смены — восстановление, ≈ 25 мин', 'id': 'aft', 'main': True, 'steps': steps,
+         'foot': 'Тренировки сегодня нет: организм восстанавливается к двум выходным. По желанию — спокойная прогулка 20–30 мин.'},
+        {'t': 'list', 'title': 'Ночная смена', 'lines': NIGHT_RULES, 'collapse': True},
+        {'t': 'list', 'title': 'Жёлтый или красный день', 'lines': ['<b>Жёлтый или красный:</b> только дыхание и сон.']},
     ]
-    return secs, prog
+    return secs
 
 
 # ------------------------------------------------------------------ разминки
@@ -346,7 +287,7 @@ def warm_steps(kind, Pp):
 
 
 def warm_sec(kind, Pp, note=None, title=None, noramp=False):
-    title = title or ('Разминка А — 12 мин' if kind == 'A' else 'Разминка Б — 12 мин')
+    title = title or ('Разминка — 10 мин' if kind == 'A' else 'Разминка — 10 мин')
     if noramp:
         st = warm_steps(kind, Pp)[:-1]
         return {'t': 'steps', 'title': title, 'id': 'warm', 'warm': True, 'steps': st, 'foot': note or ''}
@@ -356,14 +297,11 @@ def warm_sec(kind, Pp, note=None, title=None, noramp=False):
 
 
 # ------------------------------------------------------------------ День 3
-FIGHTER = ['Трусца', 'Рывок', 'Спиной вперёд', 'Скрестный шаг', 'Поворот вокруг себя']
-
-
-def run_series_cond(n, fast_lbl, fast_tip, title, how):
+def interval_cond(n, fast_lbl, fast_tip, title, how):
     segs = []
     for i in range(n):
-        segs += [seg(f'Трусца {i + 1}/{n}', 60, 'easy'), seg(f'{fast_lbl} {i + 1}/{n}', 30, 'work', fast_tip), seg(f'Ходьба {i + 1}/{n}', 60, 'rest')]
-    return cond(title, segs, [how], kind='run')
+        segs += [seg(f'Легко {i + 1}/{n}', 60, 'easy', 'разговорный темп'), seg(f'{fast_lbl} {i + 1}/{n}', 30, 'work', fast_tip), seg(f'Легко {i + 1}/{n} — восстановление', 60, 'rest')]
+    return cond(title, segs, [how[:1].upper() + how[1:] + '.'], kind='run')
 
 
 def bag_segs(n, mins, label, finish=0, tip=None):
@@ -436,34 +374,16 @@ def conv_d3_row(r, c, Pp, deload):
     if t.startswith('«Прыжки в стороны»') or t.startswith('«Прыжки вверх»'):
         n, k, per = parse_nr(amt)
         return [item('jumps', amt, rows(n, k), load=('Вверх с места' if 'вверх' in t else 'В стороны, низко'), rest=45 if 'в стороны' in t else 60, note=note, page=page)]
-    if t.startswith('Функциональная изометрия Ли (с. 215): упор кулаком'):
-        return [item('iso_fist', amt, rows(3, 6, lbl=['Нижний уровень', 'Верхний уровень', 'Средний уровень']), unit='sec', rest=45, note=note, page=page)]
-    if t.startswith('Функциональная изометрия Ли (с. 215): упор стопой'):
-        return [item('iso_foot', amt, rows(4, 6, lbl=['Прямой — нижний', 'Прямой — средний', 'Боковой — нижний', 'Боковой — средний']), unit='sec', lr=True, rest=45, note=note, page=page)]
-    # пресс
-    if t.startswith('«Лягушка»'):
-        m = re.match(r'^(\d+) × \(максимум − (\d+)\)$', amt)
-        if m:
-            return [item('frog', amt, rows(int(m.group(1)), None, kind='amrap', off=int(m.group(2))), rest=60, note=note, page=page)]
+    # кор
+    if t.startswith('Подъём коленей в висе'):
         n, k, per = parse_nr(amt)
-        return [item('frog', amt, rows(n, k), rest=60, note=note, page=page)]
-    if t.startswith('«Поднимание ног»'):
+        return [item('hang_knee', amt, rows(n, k), rest=45, note=note, page='не из книги')]
+    if t.startswith('Паллоф-пресс'):
         n, k, per = parse_nr(amt)
-        return [item('leg_raise', amt, rows(n, k), rest=45, note=note, page=page)]
-    if t.startswith('«Наклоны в стороны»'):
-        n, k, per = parse_nr(amt)
-        w = kgs(how)
-        return [item('side_bend', amt, rows(n, k, pw=w[0] if w else None), load=(f'План: {fmt_kg(w[0])} кг' if w else ''), rest=45, note=note, per='на сторону', page=page)]
-    if t.startswith('«Вращение в талии», «поднимание ног», «лягушка»'):
-        return [item('waist_twist', '1 × 30', rows(1, 30), rest=30), item('leg_raise', '1 × 10', rows(1, 10), rest=30), item('frog', '1 × 8', rows(1, 8), rest=30)]
-    if t.startswith('«Вращение в талии»'):
-        n, k, per = parse_nr(amt)
-        return [item('waist_twist', amt, rows(n, k), rest=30, note=note, page=page)]
-    if t.startswith('«Вращения сидя»') or t.startswith('«Из положения лёжа в положение сидя'):
-        n, k, per = parse_nr(amt)
-        return [item('situp_twist', amt, rows(n, k), rest=45, note=note, page=page)]
-    if t.startswith('«Статическое сокращение»'):
-        return [item('static_abs', '5 × 5 с', rows(1, 5, reps=5, rr=5, lbl='5 × 5 с'), unit='sec', rest=0, note=('Напряги пресс, как перед пропущенным ударом, на 5 с и отпусти; дыхание не задерживай. ' + note).strip(), page=page)]
+        return [item('pallof', amt, rows(n, k), wt='band', load='Резина средней жёсткости', rest=30, note=note, per=per, page='не из книги')]
+    if t.startswith('Боковая планка'):
+        m = re.match(r'(\d+) × (\d+) с', amt)
+        return [item('side_plank', amt, rows(int(m.group(1)), int(m.group(2))), unit='sec', lr=True, rest=30, note=note, page='не из книги')]
     raise ValueError('D3 row not mapped: ' + t)
 
 
@@ -518,34 +438,14 @@ def d3_entries(c):
             out.append(cond(f'Скоростные раунды, {part} — {first[2]}', speed_segs(n, fast, 30 - fast, 'Раунд', mins), lines, kind='rounds'))
             for r in rws[1:]:
                 out += conv_d3_row(r, c, Pp, deload)
-        elif bn.startswith('Лёгкая груша'):
-            n, mins = re.match(r'(\d+) × (\d+) мин', first[2]).groups()
-            out.append(cond('Лёгкая груша — ' + first[2], round_segs(int(n), int(mins), 60, 'Лёгкая груша'), [first[1] + '.']))
-        elif bn.startswith('Заминка'):
-            out.append(cond('Бой с тенью «в темпе разминки» — 2 мин', [seg('Бой с тенью в темпе разминки', 120, 'easy')], ['Как заканчивал Ли (с. 129).']))
-        elif bn.startswith('Растяжка Ли'):
-            H = int(re.search(r'(\d+)', first[2]).group(1))
-            mins = re.search(r'(\d+) мин', bn).group(1)
-            out.append(stretch_cond(f'Растяжка Ли — по {H} с на позицию', D3_STRETCH, H, first[1] + '. Без пружинения.'))
-        elif bn.startswith('Беговые упражнения Ли') and Pp == 2:
+        elif bn.startswith('Растяжка'):
+            out.append(stretch_cond('Растяжка — по 30 с на позицию', D3_STRETCH, 30, 'Спокойно, без пружинения.'))
+        elif bn.startswith('Интервалы в горку') or bn.startswith('Спринты в горку'):
             n = int(re.match(r'(\d+)', first[2]).group(1))
             pct = re.search(r'на (\d+)%', first[3]).group(1)
-            out.append(run_series_cond(n, f'Быстрый бег на {pct}%', '+4–5 км/ч к трусце', f'Беговые серии Ли — {first[2]}', first[3]))
-        elif bn == 'Бег':
-            if Pp == 2:  # разгрузка
-                segs = [x for i in range(2) for x in (seg(f'Трусца {i + 1}/2', 120, 'easy'), seg(f'Ходьба {i + 1}/2', 60, 'rest'))]
-                out.append(cond('Бег — 2 серии без ускорений', segs, [first[1] + '.', 'Зона 2.'], kind='run'))
-            elif deload:
-                segs = [seg(x, 30, 'easy') for x in ['Трусца', 'Спиной вперёд', 'Скрестный шаг', 'Поворот вокруг себя']]
-                segs += [x for i in range(2) for x in (seg(f'Трусца {i + 1}/2', 120, 'easy'), seg(f'Ходьба {i + 1}/2', 60, 'rest'))]
-                out.append(cond('Бег Ли «с переменами» без рывков + трусца', segs, [first[1] + '.', 'Без спринтов и рывков.'], kind='run'))
-            else:
-                segs = [seg(FIGHTER[i % 5], 30, 'work' if FIGHTER[i % 5] == 'Рывок' else 'easy') for i in range(8)]
-                out.append(cond('Бег Ли «с переменами» — 4 мин', segs, ['Как бегал Ли по воспоминаниям Бустильо (с. 120): трусца, рывок, спиной вперёд, скрестный шаг, поворот вокруг себя — по 30 с, «для тренировки ног и координации».', 'Зона 2–3.'], kind='run'))
-                sr = rws[1]
-                n = int(re.match(r'(\d+)', sr[2]).group(1))
-                pct = re.search(r'на (\d+)%', sr[3]).group(1)
-                out.append(run_series_cond(n, f'Спринт на {pct}%', '+6–7 км/ч к трусце или в горку', f'Беговые серии Ли — {sr[2]}', sr[3]))
+            sprint = bn.startswith('Спринты')
+            out.append(interval_cond(n, f'{"Спринт" if sprint else "Быстро"} на {pct}%', 'в горку или на велотренажёре',
+                                     f'{"Спринты" if sprint else "Интервалы"} — {first[2]}', first[3]))
         elif bn.startswith('Программа Ли для Хартселла') or bn.startswith('Личная программа Ли') or bn.startswith('Контрольная тренировка') or bn.startswith('Проверка ворот'):
             title = {True: bn}[True]
             title = re.sub(r'(?: — раунды)?, отдых 1 мин$', '', title)
@@ -594,16 +494,46 @@ def conv_d4(c):
             out.append(item(ex, amt, rows(n, k, pw=W[0]), load=f'Лёгкие подходы: {fmt_kg(W[0])} кг ≈ {pct}% рабочего веса', rest=rest or 90, rest_txt=rest_txt,
                             note='Второе главное движение дня — для частоты и техники: быстро и чисто, ни одного трудного повтора. Вес не повышаем.', light=True, page=page))
         elif t.startswith('Броски медбола'):
-            a, b = amt.split(' + ')
+            a, b = (amt.split(' + ') + [None])[:2]
             n1, k1, per1 = parse_nr(a)
-            n2, k2, _ = parse_nr(b)
             out.append(item('mb_rot', a, rows(n1, k1), wt='none', load='Мяч 4–6 кг', rest=45, per=per1, page='не из книги',
-                            note='Взрывно: разворот начинается с задней ноги и таза, как в боковом ударе. 5 бросков на одну сторону, затем на другую — один подход.'))
-            out.append(item('mb_chest', b, rows(n2, k2), wt='none', load='Мяч 4–6 кг', rest=45, page='не из книги',
-                            note='Толчок с шагом вперёд — сила идёт от ног.'))
+                            note='Взрывно: разворот начинается с задней ноги и таза. 5 бросков на одну сторону, затем на другую — один подход.'))
+            if b:
+                n2, k2, _ = parse_nr(b)
+                out.append(item('mb_chest', b, rows(n2, k2), wt='none', load='Мяч 4–6 кг', rest=45, page='не из книги',
+                                note='Толчок с шагом вперёд — сила идёт от ног.'))
+        elif t.startswith('Отжимания с хлопком'):
+            n, k, _ = parse_nr(amt)
+            out.append(item('clap_pushup', amt, rows(n, k), rest=60, note=note, page=page))
+        elif t.startswith('Тяга резины к лицу'):
+            n, k, _ = parse_nr(amt)
+            sq = [x for x in out if x.get('ex') == 'squat'][-1]
+            out.append(item('face_pull', amt, rows(n, k), wt='band', load='Резина средней жёсткости', rest=sq['spec']['rest'], rest_txt=sq['rest'],
+                            note=note, page='не из книги', pairPrev=True))
+        elif t.startswith('Болгарские сплит-приседания'):
+            n, k, per = parse_nr(amt)
+            if W:
+                out.append(item('split_squat', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), wt='db', load=f'План: {fmt_kg(W[0])} кг в каждой руке', rest=60, note=note, per=per, page='не из книги'))
+            else:
+                out.append(item('split_squat', amt, rows(n, k), wt='bw', load='Без веса', rest=60, note=re.sub(r'^Без веса;\s*', '', note).capitalize(), per=per, page='не из книги'))
+        elif t.startswith('Прогулка фермера'):
+            m = re.match(r'(\d+) × (\d+) с', amt)
+            out.append(item('farmer', amt, rows(int(m.group(1)), int(m.group(2)), pw=W[0]), unit='sec', wt='db', load=f'План: {fmt_kg(W[0])} кг в каждой руке', rest=60,
+                            note=re.sub(r';?\s*отдых [^;]+', '', re.sub(r'^[\d,]+ кг в каждой руке;\s*', '', how)).strip('; ').capitalize(), page='не из книги'))
+        elif t.startswith('Планка на локтях'):
+            m = re.match(r'(\d+) × (\d+) с', amt)
+            out.append(item('plank', amt, rows(int(m.group(1)), int(m.group(2))), unit='sec', rest=45, note=note, page='не из книги'))
+        elif t.startswith('«Мёртвый жук»'):
+            n, k, per = parse_nr(amt)
+            out.append(item('dead_bug', amt, rows(n, k), rest=45, note=note, per=per, page='не из книги'))
+        elif t.startswith('Велотренажёр — заминка'):
+            out.append(cond('Велотренажёр — заминка 10 мин', [seg('Велотренажёр, Зона 1–2', 600, 'easy', 'пульс до 115, каденс 80–90')],
+                            ['Спокойная езда: пульс до 115, каденс 80–90 — быстрее уходит усталость из ног.'], kind='bike'))
+        elif t.startswith('Подколенные, сгибатели бедра в выпаде'):
+            out.append(stretch_cond('Растяжка — по 30 с на позицию', D4_STRETCH, 30, 'Спокойно, без пружинения.'))
         elif t.startswith('«Приседания»'):
             n, k, _ = parse_nr(amt)
-            pair = i + 1 < len(R) and R[i + 1][1].startswith('«Занос за голову»')
+            pair = i + 1 < len(R) and R[i + 1][1].startswith('Тяга резины к лицу')
             it = item('squat', amt, rows(n, k, rpe=rpe_for(Pp, True, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=rest or 150, rest_txt=rest_txt, note=note, main=True, page=page)
             if pair:
                 pn, pk, _ = parse_nr(R[i + 1][2])
@@ -611,14 +541,11 @@ def conv_d4(c):
                 it['spec']['pairFrom'] = max(0, n - pn)
                 it['lab_pair'] = True
             out.append(it)
-        elif t.startswith('«Занос за голову»'):
-            n, k, _ = parse_nr(amt)
-            sq = [x for x in out if x.get('ex') == 'squat'][-1]
-            wt = 'db'
-            out.append(item('pullover', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=sq['spec']['rest'], rest_txt=sq['rest'], note=note, wt=wt, page=page, pairPrev=True))
         elif t.startswith('«Жим штанги стоя»'):
             n, k, _ = parse_nr(amt)
-            out.append(item('milpress', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=rest or 90, rest_txt=rest_txt, note=note, page=page))
+            mainp = Pp >= 2  # в Фазах 2–3 жим стоя — первое упражнение дня «А»
+            out.append(item('milpress', amt, rows(n, k, rpe=rpe_for(Pp, mainp, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=rest or (150 if mainp else 90),
+                            rest_txt=rest_txt, note=note, main=mainp, page=page))
         elif t.startswith('«Переднее подтягивание»'):
             m1 = re.match(r'^(\d+) подход', amt)
             m2 = re.match(r'^(\d+) × \(максимум − (\d+)\)$', amt)
@@ -655,15 +582,9 @@ def conv_d4(c):
                 out.append(item('calf', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=pw), load=f'План: {fmt_kg(pw)} кг', rest=60, note=note, page=page))
             else:
                 out.append(item('calf', amt, rows(n, k), wt='bw', load='Без веса', rest=60, note=note.replace('Без веса — в', 'В'), page=page))
-        elif t.startswith('«Запястный вращатель»'):
-            n = int(re.match(r'(\d+)', amt).group(1))
-            out.append(item('wrist_roller', amt, rows(n, None, kind='round', lbl='Намотка', pw=W[0]), unit='rounds', load=f'План: груз {fmt_kg(W[0])} кг', rest=45, note=note, page=page))
         elif t.startswith('«Тяжёлая штанга»'):
             n, k, _ = parse_nr(amt)
             out.append(item('deadlift', amt, rows(n, k, rpe=rpe_for(Pp, True, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=rest or 150, rest_txt=rest_txt, note=note, main=True, page=page))
-        elif t.startswith('«Байтак»'):
-            n, k, _ = parse_nr(amt)
-            out.append(item('baithak', amt, rows(n, k), rest=60, note=note, page=page))
         elif t.startswith('«Гребля гантелью одной рукой»'):
             n, k, _ = parse_nr(amt)
             out.append(item('db_row', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=60, note=note, per='каждой рукой', page=page))
@@ -676,35 +597,12 @@ def conv_d4(c):
         elif t.startswith('«Французский жим»'):
             n, k, _ = parse_nr(amt)
             out.append(item('french', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=60, note=note, page=page))
-        elif t.startswith('«Обратный жим»'):
-            a, b = amt.split(' + ')
-            n1, k1, _ = parse_nr(a)
-            n2, k2, _ = parse_nr(b)
-            nt = 'Ли: «используйте только тот вес, с которым можете работать без излишнего напряжения» (с. 65).'
-            out.append(item('rev_curl', a, rows(n1, k1, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=45, note=nt, page='с. 33, 48'))
-            out.append(item('wrist_curl', b, rows(n2, k2, rpe=rpe_for(Pp, False, deload), pw=W[1]), load=f'План: {fmt_kg(W[1])} кг', rest=45, page='с. 33, 45'))
         elif t.startswith('«Прыжок из приседа»'):
             n, k, _ = parse_nr(amt)
             out.append(item('jump_squat', amt, rows(n, k), rest=60, note=note, page=page))
-        elif t.startswith('«Выжимание штанги»'):
-            n, k, _ = parse_nr(amt)
-            out.append(item('clean_press', amt, rows(n, k, rpe=rpe_for(Pp, True, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг' + (' · с виса' if 'с виса' in t else ''), rest=rest or 150, rest_txt=rest_txt, note=note, main=True, page=page))
-        elif t.startswith('Изометрия Ли'):
-            lbl = ['Давление вперёд — перекладина на уровне подбородка', 'Тяга снизу — на 15–18 см ниже пояса', 'Параллельное приседание — перекладина на плечах']
-            if '8–10' in amt:
-                rw = rows(3, 8, 10, lbl=lbl)
-            else:
-                rw = rows(3, 6, lbl=lbl)
-            out.append(item('iso_rack', amt, rw, unit='sec', rest=60, note=note, page=page))
         elif t.startswith('«Жим с концентрацией»'):
             n, k, _ = parse_nr(amt)
             out.append(item('conc_curl', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=60, per='каждой рукой', page=page))
-        elif t.startswith('Предплечья — программа Ли «А»') or t.startswith('Предплечья — программа Ли «В»'):
-            ex = 'forearm_a' if '«А»' in t else 'forearm_b'
-            n = 1 if 'по 1' in amt else 2
-            detail = t.split(': ', 1)[1]
-            out.append(item(ex, amt, rows(n, None, kind='round', lbl='Круг'), unit='rounds', wt='none', load='', rest=60,
-                            note=detail[:1].upper() + detail[1:] + '. ' + (clean_how(how) or ''), page=page))
         elif t.startswith('«Попеременный шпагат» в прыжке'):
             n, k, _ = parse_nr(amt)
             out.append(item('split_jump', amt, rows(n, k), rest=60, note=note, per='на ногу', page=page))
@@ -719,22 +617,6 @@ def conv_d4(c):
         elif t.startswith('«Растяжение трицепсов»'):
             n, k, _ = parse_nr(amt)
             out.append(item('tri_ext', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг', rest=45, per='каждой рукой', page=page))
-        elif t.startswith('Хват'):
-            a, b = amt.split(' + ')
-            n1, k1, _ = parse_nr(a)
-            nr = int(re.match(r'(\d+)', b).group(1))
-            out.append(item('gripper', a, rows(n1, k1), wt='none', rest=30, note='«Ежедневно при каждой возможности» (с. 72).', page='с. 68, 72'))
-            out.append(item('wrist_roller', b, rows(nr, None, kind='round', lbl='Намотка', pw=W[0]), unit='rounds', load=f'План: груз {fmt_kg(W[0])} кг', rest=45, page='с. 48, 72–73'))
-        elif t.startswith('«Жим Зоттмана»'):
-            n, k, _ = parse_nr(amt)
-            out.append(item('zottman', amt, rows(n, k, rpe=rpe_for(Pp, False, deload), pw=W[0]), load=f'План: {fmt_kg(W[0])} кг в каждой руке', rest=60, page=page))
-        elif t.startswith('Ровная езда'):
-            mins = int(re.match(r'(\d+)', amt).group(1))
-            out.append(cond(f'Велотренажёр — {mins} мин, Зона 2', [seg('Велотренажёр, Зона 2', mins * 60, 'work', 'пульс 108–126, каденс 80–90')],
-                            ['Ровная езда в Зоне 2: пульс 108–126, каденс 80–90. Ли «обычно пользовался велотренажёром» (с. 99).'], kind='bike'))
-        elif t.startswith('«Растяжение подколенных сухожилий»'):
-            H = int(re.search(r'(\d+)', amt).group(1))
-            out.append(stretch_cond(f'Растяжка Ли — по {H} с на позицию', D4_STRETCH, H, 'Растяжка после силовой быстро возвращает работоспособность (с. 103). Без пружинения.'))
         else:
             raise ValueError('D4 row not mapped: ' + t)
         i += 1
@@ -766,7 +648,7 @@ TESTS = [
     ('thomas', 'Тест Томаса', 'Лёжа на краю стола, одно колено к груди: доходит ли второе бедро до горизонтали'),
 ]
 TMAP = {t[0]: t for t in TESTS}
-C0_EXTRA = [('frog', '«Лягушка» в висе', 'Колени к груди без раскачки, до потери техники'),
+C0_EXTRA = [('frog', 'Подъём коленей в висе', 'Колени к груди без раскачки, до потери техники'),
             ('rope', 'Скакалка до первого сбоя', 'Лёгкий темп, максимум 5 мин'),
             ('mile2', '«Две мили Ли» — 3,2 км', 'Быстрой ходьбой (можно с трусцой) в Зоне 2: время и средний пульс с 10-й минуты')]
 
@@ -823,7 +705,9 @@ def test_day4(c):
 
 
 # ------------------------------------------------------------------ сборка дней
-MORNING_CHECK = 'Пульс покоя лёжа 60 с, сон, индекс готовности (сон, усталость, стресс, мышцы — каждое от 1 до 5), вес натощак. Цвет дня: зелёный — по плану; жёлтый — минус треть подходов, без ускорений, прыжков и изометрии; красный — прогулка 20–30 мин и растяжка или отдых.'
+MORNING_CHECK = ('Пульс покоя лёжа 60 с (или с часов), сон, индекс готовности (сон, усталость, стресс, мышцы — каждое от 1 до 5), вес натощак. '
+                 '<b>Цвет дня.</b> Зелёный — по плану. Жёлтый — спал меньше 6 часов, пришёл с ночной смены, пульс покоя на 7+ ударов выше обычного или индекс готовности низкий: '
+                 'минус треть подходов, без интервалов, прыжков и тяжёлых упражнений на ноги. Красный — два жёлтых дня подряд или болезнь: прогулка 20–30 мин и растяжка или полный отдых.')
 
 
 def strip_md(s):
@@ -844,9 +728,9 @@ def cycle_intro(c):
     if c == 32:
         intro.append('С Фазы 3 питание — на поддержании: тяжёлые веса, спринты и раунды требуют восстановления. До цели по талии (меньше 87 см) больше 2–3 см — мягкий дефицит; цифры — в разделе «Питание и сон».')
     if c == 29:
-        intro.append('Шаг вперёд — проверка ворот в День 115: 5 раундов по 3 мин на груше.')
+        intro.append(f'Шаг вперёд — проверка ворот в День {P.dn(c, 4)}: 5 раундов по 3 мин на груше.')
     if c == 44:
-        intro.append('Шаг вперёд — контрольная тренировка по личной программе Ли в День 175.')
+        intro.append(f'Шаг вперёд — контрольная тренировка по личной программе Ли в День {P.dn(c, 4)}.')
     return ' '.join(intro)
 
 
@@ -869,12 +753,11 @@ def build_day(c, k):
     food = strip_md(P.food('shift' if k <= 2 else 'train', c))
     if k == 1:
         secs, mins = proto_c(c, Pp, mp)
-        day.update(k='C', title=('Кардио = калибровка Зоны 2' if c in P.TEST else 'Кардио Ли + бой с тенью'), time=f'≈ {mins} мин после смены')
+        day.update(k='C', title=('Калибровка Зоны 2 + суставы' if c in P.TEST else 'Зона 2 + суставы'), time=f'≈ {mins} мин после смены')
         day['secs'] = [morning_sec(c, k)] + secs
     elif k == 2:
-        secs, prog = proto_r(c, Pp, mp)
-        day.update(k='R', title='Велотренажёр + бой с тенью + гибкость Ли', time='≈ 65 мин после смены', flex=prog)
-        day['secs'] = [morning_sec(c, k)] + secs
+        day.update(k='R', title='День восстановления', time='≈ 25 мин после смены')
+        day['secs'] = [morning_sec(c, k)] + proto_r(c, Pp, mp)
     elif test and k == 3:
         day.update(k='T', title='Контрольные тесты, часть 1', time='≈ 70 мин')
         day['secs'] = test_day3(c)
@@ -883,45 +766,44 @@ def build_day(c, k):
         day.update(k='T', title=title, time='≈ 60 мин')
         day['secs'] = test_day4(c)
     elif k == 3:
+        # первый выходной — силовая: ей нужна свежая голова
+        entries, meta = conv_d4(c)
+        mm = int(5 * round(meta['minutes'] / 5))
+        A = (c % 2 == 1)
+        title = ('Силовая «А»' if A else 'Силовая «Б»') + (', разгрузка' if deload else '')
+        if c == 44:
+            title += ' (накануне контрольной — без рекордов)'
+        day.update(k='A' if A else 'B', title=title, time=f'≈ {mm} мин')
+        day['pre'] = ('За 5 мин до старта — квадратное дыхание 3 мин и визуализация 2 мин. '
+                      'После ночных смен не выспался — поменяй выходные местами: сегодня раунды по жёлтому правилу (без интервалов), силовая — завтра.')
+        day['secs'] = [morning_sec(c, k), warm_sec('B', Pp), {'t': 'ex', 'title': 'Тренировка', 'id': 'sec-ex', 'items': entries}]
+    else:
+        # второй выходной — раунды и интервалы
         entries, meta, tests = d3_entries(c)
         mm = int(5 * round(meta['minutes'] / 5))
         if c == 44:
             title = 'Контрольная тренировка Ли'
         elif c == 29:
-            title = 'Раунды Ли + проверка ворот'
+            title = 'Раунды + проверка ворот'
         elif deload:
-            title = 'Раунды Ли, разгрузка'
+            title = 'Раунды, разгрузка'
+        elif Pp == 1:
+            title = 'Раунды: скакалка, бой с тенью, груша'
+        elif Pp == 2:
+            title = 'Раунды: программа Хартселла' if c % 2 == 1 else 'Интервалы + груша'
         else:
-            focus = ''
-            if Pp >= 2:
-                focus = ' (руки)' if c % 2 == 1 else ' (ноги)'
-                if Pp == 2 and mp == 3 and c % 2 == 0:
-                    focus = ' (руки + ноги)'
-            title = 'Раунды Ли' + focus
+            title = 'Раунды: личная программа Ли' if c % 2 == 1 else 'Спринты + скоростные раунды'
         day.update(k='F', title=title, time=f'≈ {mm} мин')
-        pre = 'Лучше в первой половине дня. За 5 мин до старта — квадратное дыхание 3 мин и визуализация 2 мин.'
-        if Pp >= 2:
-            pre += ' Бег можно сделать утром отдельно: Ли бегал рано утром, а раунды делал ближе к полудню (с. 130).'
-        day['pre'] = pre
+        day['pre'] = 'Лучше в первой половине дня. За 5 мин до старта — квадратное дыхание 3 мин.'
         notes = [strip_md(P.BAG_NOTE)]
         if c == 44:
-            notes.append('<b>Сравни с Днём 115:</b> насколько упал пульс за минуту отдыха после последнего раунда на груше. Сегодня работа тяжелее (RPE 8–9 против 7) — если падение такое же или больше, выносливость выросла.')
+            notes.append(f'<b>Сравни с Днём {P.dn(29, 4)}:</b> насколько упал пульс за минуту отдыха после последнего раунда на груше. Сегодня работа тяжелее (RPE 8–9 против 7) — если падение такое же или больше, выносливость выросла.')
         secs = [morning_sec(c, k), warm_sec('A', Pp), {'t': 'ex', 'title': 'Тренировка', 'id': 'sec-ex', 'items': entries}]
         if tests:
             secs.append({'t': 'tests', 'title': 'Запиши пульс', 'tests': tests})
         secs.append({'t': 'list', 'title': 'Груша и заметки', 'lines': notes})
-        secs.append({'t': 'list', 'title': 'Вечером', 'lines': ['Прогулка 20–30 мин — «ежедневные возможности» Ли (с. 208).', 'Приготовь 4 контейнера еды на две смены.']})
+        secs.append({'t': 'list', 'title': 'Вечером', 'lines': ['Спокойная прогулка 20–30 мин.', 'Приготовь 4 контейнера еды на две смены.']})
         day['secs'] = secs
-    else:
-        entries, meta = conv_d4(c)
-        mm = int(5 * round(meta['minutes'] / 5))
-        A = (c % 2 == 1)
-        kind = ('силовая Ли «А»' if A else 'силовая Ли «Б»') + (', разгрузка' if deload else '') + ' + велотренажёр + растяжка'
-        if c == 44:
-            kind += ' (после контрольной — без рекордов)'
-        day.update(k='A' if A else 'B', title=kind[:1].upper() + kind[1:], time=f'≈ {mm} мин')
-        day['pre'] = 'За 5 мин до старта — квадратное дыхание 3 мин и визуализация 2 мин.'
-        day['secs'] = [morning_sec(c, k), warm_sec('B', Pp), {'t': 'ex', 'title': 'Тренировка', 'id': 'sec-ex', 'items': entries}]
     day['food'] = food
     # нумерация упражнений; пара «присед + занос за голову» — один номер, a и b
     n = 0
