@@ -366,6 +366,31 @@ def run_series_cond(n, fast_lbl, fast_tip, title, how):
     return cond(title, segs, [how], kind='run')
 
 
+def bag_segs(n, mins, label, finish=0, tip=None):
+    """Раунды на груше по времени; finish — последние секунды раунда на максимум."""
+    segs = []
+    for j in range(n):
+        lbl = f'{label} — раунд {j + 1} из {n}'
+        if finish:
+            segs += [seg(lbl, mins * 60 - finish, 'work', tip), seg(f'{label} — на максимум!', finish, 'work', 'последние секунды раунда — на пределе')]
+        else:
+            segs.append(seg(lbl, mins * 60, 'work', tip))
+        if j < n - 1:
+            segs.append(seg('Отдых', 60, 'rest'))
+    return segs
+
+
+def speed_segs(n, fast, slow, label, mins=2):
+    """Скоростные раунды: внутри раунда fast с на максимальной скорости, slow с легко."""
+    segs = []
+    for j in range(n):
+        for i in range(mins * 60 // (fast + slow)):
+            segs += [seg(f'{label} {j + 1}/{n} — быстро', fast, 'work', 'максимальная скорость'), seg(f'{label} {j + 1}/{n} — легко', slow, 'easy', 'лёгкие удары, дыши')]
+        if j < n - 1:
+            segs.append(seg('Отдых', 60, 'rest'))
+    return segs
+
+
 def rounds_from(title, rws, lines_extra=None):
     segs, lines = [], []
     for i, r in enumerate(rws):
@@ -391,23 +416,7 @@ def conv_d3_row(r, c, Pp, deload):
     rs, rest_txt = rest_of(how, 0)
     note = clean_how(how)
 
-    def kick_like(ex, rest=45):
-        n, k, per = parse_nr(amt)
-        return [item(ex, amt, rows(n, k), load='', rest=rest, note=note, per=per, page=page)]
     t = name
-    if t.startswith('По одному виду удара: «тычок»'):
-        n, k, per = parse_nr(amt)
-        return [item('punches_single', amt, rows(n, k), rest=60, note=note, per='каждым ударом: «тычок», «кросс», хук', page=page)]
-    if t.startswith('Комбинации Ли'):
-        n, k, per = parse_nr(amt)
-        combos = 'комбинации: ' + P.COMBOS + '. '
-        return [item('combos', amt, rows(n, k), rest=60, note=(combos + note).strip(), per='каждой из 4 комбинаций', page=page)]
-    if t.startswith('«Стандарт Ли»'):
-        n, k, per = parse_nr(amt)
-        return [item('lee_standard', amt, rows(n, k), rest=60, note=note, per='прямым передней и прямым задней', page=page)]
-    if t.startswith('Тренировка Ли на тяжёлой груше'):
-        n = int(re.match(r'(\d+)', amt).group(1))
-        return [item('belair', amt, rows(n, 15), rest=60, note='15 ударов подряд в разные уровни — список в карточке «Как делать». ' + note.replace('Отдых 1 мин', '').strip(), per='ударов подряд', page=page)]
     if t.startswith('«Отжимания» — широкое'):
         m = re.match(r'^(\d+) × \(максимум − (\d+)\)$', amt)
         return [item('pushup_wide', amt, rows(int(m.group(1)), None, kind='amrap', off=int(m.group(2))), load=f'В каждом подходе — максимум минус {m.group(2)}', rest=60, note=note, page=page)]
@@ -427,38 +436,10 @@ def conv_d3_row(r, c, Pp, deload):
     if t.startswith('«Прыжки в стороны»') or t.startswith('«Прыжки вверх»'):
         n, k, per = parse_nr(amt)
         return [item('jumps', amt, rows(n, k), load=('Вверх с места' if 'вверх' in t else 'В стороны, низко'), rest=45 if 'в стороны' in t else 60, note=note, page=page)]
-    if t.startswith('Прямой и боковой удар ногой') or t.startswith('Прямой, боковой и хук ногой') or t.startswith('По одному виду удара каждой ногой'):
-        return kick_like('kicks_bag')
-    if t.startswith('Ногами в комбинации'):
-        return kick_like('kick_combos', 60)
-    if t.startswith('«И наконец, работайте руками и ногами'):
-        return kick_like('hand_foot', 60)
-    if t.startswith('«Выброс рук вперёд» и «резкий удар»'):
-        return kick_like('hand_throw', 45)
-    if t.startswith('«Выброс рук вперёд»'):
-        return kick_like('hand_throw', 45)
-    if t.startswith('«Резкий удар правой»'):
-        return kick_like('snap_lead', 45)
-    if t.startswith('«Удары по груше» — хук'):
-        n, k, per = parse_nr(amt)
-        return [item('hook_cross', amt, rows(n, k), rest=45, note=note, per='по 10 каждым ударом', page=page)]
-    if t.startswith('«Удары правой и левой»'):
-        n, k, per = parse_nr(amt)
-        return [item('one_two', amt, rows(n, k), rest=45, note=note, per='двоек', page=page)]
     if t.startswith('Функциональная изометрия Ли (с. 215): упор кулаком'):
         return [item('iso_fist', amt, rows(3, 6, lbl=['Нижний уровень', 'Верхний уровень', 'Средний уровень']), unit='sec', rest=45, note=note, page=page)]
     if t.startswith('Функциональная изометрия Ли (с. 215): упор стопой'):
         return [item('iso_foot', amt, rows(4, 6, lbl=['Прямой — нижний', 'Прямой — средний', 'Боковой — нижний', 'Боковой — средний']), unit='sec', lr=True, rest=45, note=note, page=page)]
-    if t.startswith('«Атака ногой вперёд» и «резкий удар в сторону»'):
-        return kick_like('kicks_bag')
-    if t.startswith('«Атака ногой вперёд»'):
-        return kick_like('front_kick')
-    if t.startswith('«Резкий удар в сторону»'):
-        return kick_like('side_kick')
-    if t.startswith('«Хук сбоку»'):
-        return kick_like('hook_kick')
-    if t.startswith('«Удар голенью/коленом»'):
-        return kick_like('shin_knee')
     # пресс
     if t.startswith('«Лягушка»'):
         m = re.match(r'^(\d+) × \(максимум − (\d+)\)$', amt)
@@ -519,6 +500,24 @@ def d3_entries(c):
             elif 'разминка — быстро — спокойно' in first[1]:
                 tips = ['Раунд 1 — разминка', 'Раунд 2 — быстро', 'Раунд 3 — спокойно']
             out.append(cond('Бой с тенью — ' + first[2], round_segs(n, int(mins), 60, 'Бой с тенью', tips=tips[:n] if tips else None), [first[1] + '.']))
+        elif bn.startswith('Тяжёлая груша'):
+            n, mins = map(int, re.match(r'(\d+) × (\d+) мин', first[2]).groups())
+            part = re.match(r'Тяжёлая груша — ([^,]+)', bn).group(1)
+            fm = re.search(r'последние (\d+) с раунда', first[3])
+            tip = re.sub(r'^отдых [^;]+;\s*', '', first[3])
+            tip = re.sub(r';\s*последние \d+ с раунда — на максимум', '', tip).split(';')[0].strip()
+            lines = [first[1] + '.', first[3][:1].upper() + first[3][1:] + '.']
+            out.append(cond(f'Груша, {part} — {first[2]}', bag_segs(n, mins, f'Груша, {part}', int(fm.group(1)) if fm else 0, tip or None), lines, kind='rounds'))
+            for r in rws[1:]:
+                out += conv_d3_row(r, c, Pp, deload)
+        elif bn.startswith('Скоростные раунды'):
+            n, mins = map(int, re.match(r'(\d+) × (\d+) мин', first[2]).groups())
+            fast = int(re.search(r': (\d+) с — ', first[1]).group(1))
+            part = 'руки' if '— руки' in bn else 'ноги'
+            lines = [first[1] + '.', first[3][:1].upper() + first[3][1:] + '.']
+            out.append(cond(f'Скоростные раунды, {part} — {first[2]}', speed_segs(n, fast, 30 - fast, 'Раунд', mins), lines, kind='rounds'))
+            for r in rws[1:]:
+                out += conv_d3_row(r, c, Pp, deload)
         elif bn.startswith('Лёгкая груша'):
             n, mins = re.match(r'(\d+) × (\d+) мин', first[2]).groups()
             out.append(cond('Лёгкая груша — ' + first[2], round_segs(int(n), int(mins), 60, 'Лёгкая груша'), [first[1] + '.']))
@@ -904,13 +903,13 @@ def build_day(c, k):
         if Pp >= 2:
             pre += ' Бег можно сделать утром отдельно: Ли бегал рано утром, а раунды делал ближе к полудню (с. 130).'
         day['pre'] = pre
-        notes = [f'<b>Лимиты:</b> по тяжёлой груше — до {P.PUNCH_CAP[Pp]} ударов руками и {P.KICK_CAP[Pp]} ногами. Бинты и перчатки всегда (с. 123). Упала скорость или ноет кисть — блок на груше закончен, даже если подходы остались.']
+        notes = [strip_md(P.BAG_NOTE)]
         if c == 44:
             notes.append('<b>Сравни с Днём 115:</b> насколько упал пульс за минуту отдыха после последнего раунда на груше. Сегодня работа тяжелее (RPE 8–9 против 7) — если падение такое же или больше, выносливость выросла.')
         secs = [morning_sec(c, k), warm_sec('A', Pp), {'t': 'ex', 'title': 'Тренировка', 'id': 'sec-ex', 'items': entries}]
         if tests:
             secs.append({'t': 'tests', 'title': 'Запиши пульс', 'tests': tests})
-        secs.append({'t': 'list', 'title': 'Лимиты и заметки', 'lines': notes})
+        secs.append({'t': 'list', 'title': 'Груша и заметки', 'lines': notes})
         secs.append({'t': 'list', 'title': 'Вечером', 'lines': ['Прогулка 20–30 мин — «ежедневные возможности» Ли (с. 208).', 'Приготовь 4 контейнера еды на две смены.']})
         day['secs'] = secs
     else:
