@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Брюс Ли 4.0</title>
+<title>Брюс Ли 5.0</title>
 <style>
 @font-face{font-family:"Inter";font-weight:400;src:url("fonts/Inter-Regular.otf")}
 @font-face{font-family:"Inter";font-weight:600;src:url("fonts/Inter-SemiBold.otf")}
@@ -70,8 +70,8 @@ p{margin:0}
 .tbar .prog{grid-column:1 / -1;height:4px;border-radius:2px;background:rgba(127,127,127,.35);overflow:hidden}
 .tbar .prog i{display:block;height:100%;background:currentColor;width:0}
 
-/* ruler of 9 blocks, grid of 5 cycles × 4 days */
-.ruler{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;margin-top:12px}
+/* ruler of 6 blocks, grid of 6 cycles × 4 days */
+.ruler{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:12px}
 .cell{border:0;padding:0;height:38px;border-radius:6px;background:var(--pc);opacity:.42;position:relative;font-size:13px;font-weight:800;color:var(--bg)}
 .cell[aria-current="true"]{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
 .cell .dlm{position:absolute;left:50%;bottom:4px;width:5px;height:5px;border-radius:50%;transform:translateX(-50%);background:var(--bg)}
@@ -188,6 +188,11 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .kpi b{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
 .ex-grid{display:grid;gap:10px}
 @media (min-width:700px){.ex-grid{grid-template-columns:1fr 1fr}}
+.colors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.colors button{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 4px;font-weight:700;font-size:14px}
+.colors button[aria-pressed="true"]{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c);background:var(--surface)}
+.banner{border-left:4px solid var(--c);background:var(--sunk);padding:9px 11px;border-radius:8px;font-size:14px}
+.ztbl td.r{font-weight:700}
 .toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;z-index:40;max-width:90vw}
 @media (max-width:380px){.set{grid-template-columns:50px minmax(0,1fr) minmax(0,1fr) 58px 40px;gap:4px}.dayb .k{font-size:9.5px}.trow{grid-template-columns:minmax(0,1fr) 104px}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
@@ -212,16 +217,16 @@ var DATA = JSON.parse(document.getElementById("plan-data").textContent);
 var EX = DATA.ex, DAYS = DATA.days, SECS = DATA.secs, BLOCKS = DATA.blocks, PH = DATA.phases, N = DAYS.length;
 var PCOL = ["var(--p0)","var(--p1)","var(--p2)","var(--p3)"];
 var NATIVE = (typeof window.Android !== "undefined" && window.Android) ? window.Android : null;
-var MAINLIFT = {squat:1, deadlift:1, bench:1, milpress:1};
-var BIGSTEP = {squat:1, deadlift:1, calf:1, calf_seat:1};
-var KIND = {C:["С1","Зона 2"], R:["С2","отдых"], F:["Раунды","выходной"], A:["А","сила"], B:["Б","сила"], T:["Т","тесты"]};
+var BIGSTEP = {hipthrust_sm:1, calf_seat:1};
+var KIND = {H1:["Д1","таз·кор"], H2:["Д2","зона 2"], A:["А","зал"], B:["Б","зал"], T:["Т","тесты"]};
+var WNAME = {"Л":"лёгкая", "С":"средняя", "Т":"тяжёлая", "Р":"разгрузка"};
 function whereOf(day){ var p = (day.d - 1) % 4; return ["Смена 1","Смена 2","Выходной 1","Выходной 2"][p]; }
 function secsOf(day){ return day.secs.map(function(i){ return SECS[i]; }); }
 function itemsOf(day){ var out = []; secsOf(day).forEach(function(s){ if(s.t === "ex") s.items.forEach(function(it){ if(it.ex) out.push(it); }); }); return out; }
 
 /* ================= хранение ================= */
-var LS = "bl4-app-v1", LS_OLD = "bl3-app-v2";
-var S = {profile:{start:"", bench:"", bw:"", stepDb:2, sound:true, watch:"rest", startOk:false}, days:{}, c0:{tests:{}, checks:{}}, body:[]};
+var LS = "bl5-app-v1", LS_OLD = "bl4-app-v1";
+var S = {profile:{start:"", bench:"", bw:"", rhr:"", age:"39", hrmax:"", stepDb:2, stepMc:5, sound:true, watch:"rest", startOk:false}, days:{}, c0:{tests:{}, checks:{}}, body:[]};
 var LEGACY_D0 = null; // поля «Дня 0» старой версии: в облаке не трогаем
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -233,14 +238,14 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
       var old = JSON.parse(lsGet(LS_OLD) || "null");
       if(old){
         var op = old.profile || {};
-        ["start","bench","bw","stepDb","sound","watch"].forEach(function(k){ if(op[k] !== undefined && op[k] !== null) S.profile[k] = op[k]; });
+        ["bench","bw","stepDb","sound","watch"].forEach(function(k){ if(op[k] !== undefined && op[k] !== null) S.profile[k] = op[k]; });
         S.profile.startOk = false; S.body = old.body || [];
       }
     }
     S.c0.tests = S.c0.tests || {}; S.c0.checks = S.c0.checks || {};
   }catch(e){}
 })();
-function key(d){ return "n" + String(d).padStart(3, "0"); }
+function key(d){ return "s" + String(d).padStart(3, "0"); }
 function rec(d){ var k = key(d); if(!S.days[k]) S.days[k] = {done:false, note:"", sets:{}, steps:{}, cond:{}, tests:{}}; var r = S.days[k]; r.sets = r.sets || {}; r.steps = r.steps || {}; r.cond = r.cond || {}; r.tests = r.tests || {}; return r; }
 function persist(){ lsSet(LS, JSON.stringify(S)); }
 
@@ -279,7 +284,7 @@ function connectCloud(){
           if(doc.id === "settings"){ if(b.profile) S.profile = Object.assign(S.profile, b.profile); LEGACY_D0 = b.d0 || LEGACY_D0; }
           else if(doc.id === "body"){ S.body = b.list || []; }
           else if(doc.id === "cycle0"){ S.c0 = {tests:b.tests || {}, checks:b.checks || {}}; }
-          else if(/^n\d{3}$/.test(doc.id)){ S.days[doc.id] = b; }
+          else if(/^s\d{3}$/.test(doc.id)){ S.days[doc.id] = b; }
         });
         if(first){
           first = false;
@@ -303,78 +308,110 @@ function pct(reps, rpe){
   var lo = Math.floor(x), hi = Math.ceil(x);
   return P10[lo] + (P10[hi] - P10[lo]) * (x - lo);
 }
-var WEIGHTED = {bar:1, db:1, plate:1, belt:1, roller:1};
-function stepFor(sp){ return sp.wt === "db" ? (+S.profile.stepDb || 2) : 2.5; }
+/* mc — стек тренажёра или блок, pl — тренажёр на блинах, sm — Смит, bar — штанга, db — гантель, kb — гиря, gv — противовес гравитрона */
+var WEIGHTED = {bar:1, db:1, sm:1, pl:1, mc:1, kb:1, gv:1};
+function stepFor(sp){ if(sp.wt === "db") return +S.profile.stepDb || 2; if(sp.wt === "mc" || sp.wt === "gv") return +S.profile.stepMc || 5; if(sp.wt === "kb") return 4; return 2.5; }
 function rnd(x, step, wt){ if(x == null || !isFinite(x)) return null; var v = Math.round(x / step) * step; if(wt === "bar") v = Math.max(20, v); return Math.max(0, Math.round(v * 100) / 100); }
 function fkg(x){ if(x == null || x === "") return ""; return String(Math.round(x * 100) / 100).replace(".", ","); }
 function pnum(v){ if(v === "" || v == null) return null; var x = parseFloat(String(v).replace(",", ".")); return isFinite(x) ? x : null; }
 function setKey(it){ return it.lab + ":" + it.ex; }
 function doneSets(arr){ return (arr || []).filter(function(s){ return s && s.done; }); }
 
+/* пульсовые зоны: Карвонен, ЧСС макс по Танаке, если не измерена */
+function zoneTable(){
+  var age = pnum(S.profile.age) || 39, mx = pnum(S.profile.hrmax) || Math.round(208 - 0.7 * age), r = pnum(S.profile.rhr) || 70, R = mx - r;
+  var out = {mx:mx, rhr:r};
+  (DATA.zones || []).forEach(function(z){ out[z.id] = Math.floor(r + R * z.lo + 0.5) + "–" + Math.ceil(r + R * z.hi - 0.5); });
+  out.CAP = String(Math.ceil(r + R * 0.9 - 0.5));
+  return out;
+}
+var ZT = null;
+function zt(s){ if(s == null) return s; if(!ZT) ZT = zoneTable(); return String(s).replace(/\{(Z[1-5]|CAP)\}/g, function(m, k){ return ZT[k] || m; }); }
+
 function sessions(ex, beforeDay, max){
   var out = [];
   for(var d = beforeDay - 1; d >= 1; d--){
     var r = S.days[key(d)]; if(!r || !r.sets) continue;
-    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex || it.spec.light) return; var sets = r.sets[setKey(it)]; if(doneSets(sets).length) out.push({d:d, it:it, sets:sets}); });
+    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex) return; var sets = r.sets[setKey(it)]; if(doneSets(sets).length) out.push({d:d, it:it, sets:sets}); });
     if(out.length >= (max || 6)) break;
   }
   return out;
 }
-function planW(row){ if(row.pct){ var bm = pnum(S.profile.bench); return bm ? bm * row.pct / 100 : null; } return row.pw != null ? row.pw : null; }
-function factorFor(ex, day){
-  var ss = sessions(ex, day, 4);
-  for(var i = 0; i < ss.length; i++){
-    var s = ss[i], ds = doneSets(s.sets).filter(function(x){ return x.w != null; });
-    var row0 = s.it.spec.rows[0] || {}, plan = planW(row0);
-    if(!ds.length || !plan) continue;
-    var f = ds[0].w / plan, tgt = row0.rpe || 7;
-    var rp = ds.map(function(x){ return x.rpe; }).filter(Boolean), avg = rp.length ? rp.reduce(function(a, b){ return a + b; }, 0) / rp.length : null;
-    if(avg && avg <= tgt - 1) f *= 1.05; else if(avg && avg >= tgt + 1) f *= 0.95;
-    return {f:Math.max(0.6, Math.min(1.4, f)), d:s.d, used:ds[0].w, plan:plan};
-  }
-  return null;
-}
+function rowReps(row){ if(row.cl) return row.cl === "2+2+2" ? 5.5 : 7; return Math.ceil((row.lo + row.hi) / 2); }
+function rowRpe(row){ return row.cl ? 10 : (row.rpe || 8); }
 function e1rmOf(sess){
   var best = 0;
+  if(sess.it.spec.unit !== "reps") return null;
   (sess.sets || []).forEach(function(st, i){
     if(!st || !st.done || !st.w || !st.r) return;
     var row = (sess.it.spec.rows[i]) || {};
+    if(row.cl || row.half) return;
     var e = st.w / (pct(st.r, st.rpe || row.rpe || 8) / 100);
     if(e > best) best = e;
   });
   return best || null;
 }
-/* подсказка веса: план × личная поправка; внутри тренировки — правило плана */
+/* подсказка веса: по прошлой записи — оценка максимума и пересчёт под волну дня; внутри тренировки — по запасу прошлого подхода */
 function suggest(day, it, idx){
   var sp = it.spec, row = sp.rows[idx] || sp.rows[0], step = stepFor(sp);
   if(!WEIGHTED[sp.wt]) return null;
+  var inv = sp.wt === "gv", yellow = rec(day.d).color === "y";
   var today = rec(day.d).sets[setKey(it)] || [];
   var firstW = null, prev = null;
   for(var j = 0; j < idx; j++){ if(today[j] && today[j].done && today[j].w != null){ if(firstW == null) firstW = today[j].w; prev = today[j]; } }
   if(prev){
-    var tgt = row.rpe || 7, w = prev.w, why = "как прошлый подход";
-    if(prev.rpe && row.rpe){
+    if(row.half) return {w:prev.w, why:"тот же вес — только нижняя, растянутая половина амплитуды"};
+    var tgt = rowRpe(row), w = prev.w, why = "как прошлый подход";
+    if(prev.rpe && row.rpe && !row.cl){
       var up = BIGSTEP[it.ex] ? 5 : step;
-      if(prev.rpe <= tgt - 1 && prev.w <= firstW){ w = prev.w + up; why = "прошлый подход легче цели — +" + fkg(up) + " кг, одна ступень за тренировку"; }
-      else if(prev.rpe >= tgt + 1){ w = rnd(prev.w * 0.9, step, sp.wt); why = "прошлый подход тяжелее цели — −10%"; }
+      if(prev.rpe <= tgt - 1 && (inv ? prev.w >= firstW : prev.w <= firstW)){ w = inv ? Math.max(0, prev.w - step) : prev.w + up; why = inv ? "прошлый подход легче цели — противовес на ступень меньше" : "прошлый подход легче цели — +" + fkg(up) + " кг, одна ступень за тренировку"; }
+      else if(prev.rpe >= tgt + 1){ w = inv ? prev.w + step : rnd(prev.w * 0.9, step, sp.wt); why = inv ? "прошлый подход тяжелее цели — противовес на ступень больше" : "прошлый подход тяжелее цели — −10%"; }
     }
     return {w:w, why:why};
   }
-  var pw = planW(row);
-  if(pw == null) return row.pct ? {w:null, why:"Укажи лучший жим лёжа в профиле — посчитаю " + fkg(row.pct) + "% от него"} : null;
-  if(pw === 0) return {w:0, why:"без веса"};
-  var F = factorFor(it.ex, day.d);
-  var chk = row.rpe ? "Первый подход — проверка: тяжелее, чем «запас " + rirTxt(row.rpe) + "», — сбрось 10%; заметно легче — прибавь ступень." : "";
-  if(!F || Math.abs(F.f - 1) < 0.02) return {w:rnd(pw, step, sp.wt), why:(F ? "По плану: в прошлый раз ты попал в план. " : "По плану. ") + chk};
-  return {w:rnd(pw * F.f, step, sp.wt), why:"план " + fkg(pw) + " кг с твоей поправкой: в день " + F.d + " ты работал с " + fkg(F.used) + " кг при плане " + fkg(F.plan)};
+  var hist = sessions(it.ex, day.d, 1)[0], target = null, why = "";
+  if(hist){
+    var ds = doneSets(hist.sets).filter(function(x){ return x.w != null; });
+    var e1 = e1rmOf(hist);
+    if(inv || sp.wt === "kb" || sp.unit !== "reps"){
+      if(ds.length){
+        target = ds[0].w; why = "как в день " + hist.d + ": " + fkg(target) + " кг";
+        if(inv){
+          var hr = hist.it.spec.rows, allTop = ds.length >= hr.length && ds.every(function(x, i){ var q = hr[i] || {}; return x.r != null && q.hi != null && x.r >= q.hi && (!x.rpe || !q.rpe || x.rpe <= q.rpe); });
+          if(allTop){ target = Math.max(0, target - step); why += " — все подходы были на верхней границе, противовес на ступень меньше"; }
+        }
+      }
+    } else if(e1){
+      var pc = pct(rowReps(row), rowRpe(row));
+      target = rnd(e1 * pc / 100, step, sp.wt);
+      why = "по дню " + hist.d + " (" + fkg(ds[0].w) + " кг × " + (ds[0].r != null ? ds[0].r : "?") + ") максимум ≈ " + fkg(Math.round(e1)) + " кг; сегодня " + Math.round(pc) + "% от него";
+    } else if(ds.length){
+      target = ds[0].w; why = "как в день " + hist.d;
+    }
+  }
+  if(target == null && it.ex === "bench_bb" && sp.unit === "reps"){
+    var bm = pnum(S.profile.bench);
+    if(bm){ var pb = pct(rowReps(row), rowRpe(row)); target = rnd(bm * pb / 100, step, sp.wt); why = Math.round(pb) + "% от лучшего жима " + fkg(bm) + " кг"; }
+  }
+  if(target == null){
+    if(sp.unit === "sec") return {w:null, why:"Первый раз: возьми гирю, с которой " + row.hi + " с ходьбы даются ровно, без наклона корпуса. Начни с лёгкой — вес запомнится."};
+    var reps = (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повторов с запасом " + rirTxt(row.rpe || 8);
+    if(inv) return {w:null, why:"Первый раз: подбери противовес, с которым " + (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повторов идут с запасом " + rirTxt(row.rpe || 8) + ". Начни с большого противовеса — дальше приложение будет убавлять его само."};
+    var goal = row.cl ? "вес, который ты поднял бы " + (row.cl === "2+2+2" ? "5–6" : "6–7") + " раз до отказа" : reps;
+    return {w:null, why:"Первый раз: за 2–3 пробных подхода найди " + goal + ". Начни с лёгкого — дальше приложение посчитает само."};
+  }
+  if(yellow){ target = inv ? target + step : rnd(target * 0.85, step, sp.wt); why += " · жёлтый день: " + (inv ? "противовес на ступень больше" : "−15%"); }
+  var chk = (row.rpe && !row.cl && !inv) ? " Первый подход — проверка: тяжелее, чем «запас " + rirTxt(row.rpe) + "», — сбрось 10%; заметно легче — прибавь ступень." : "";
+  return {w:target, why:why + "." + chk};
 }
 function rampFor(day){
   var its = itemsOf(day);
   for(var i = 0; i < its.length; i++){
-    var it = its[i]; if(it.spec.wt !== "bar") continue;
+    var it = its[i]; if(!WEIGHTED[it.spec.wt] || it.spec.wt === "gv" || it.spec.wt === "kb" || it.spec.unit !== "reps") continue;
     var s = suggest(day, it, 0); if(!s || !s.w) return null;
-    var w = s.w, r = function(x){ return fkg(Math.max(20, Math.round(x / 2.5) * 2.5)); };
-    return EX[it.ex].name + ": " + r(w * .5) + " кг × 8 → " + r(w * .7) + " кг × 5, затем рабочие " + fkg(w) + " кг";
+    var st = stepFor(it.spec), w = s.w, r = function(x){ return fkg(rnd(x, st, it.spec.wt)); };
+    if(day.k === "B") return EX[it.ex].name + ": " + r(w * .5) + " кг × 10, затем рабочие " + fkg(w) + " кг";
+    return EX[it.ex].name + ": " + r(w * .5) + " кг × 8 → " + r(w * .7) + " кг × 5" + (day.w === "Т" ? " → " + r(w * .85) + " кг × 2" : "") + ", затем рабочие " + fkg(w) + " кг";
   }
   return null;
 }
@@ -490,8 +527,8 @@ function drawTimer(justDone){
   var kind = T.mode === "rest" ? "" : (T.seg.k || "");
   bar.className = "tbar " + kind;
   bar.innerHTML = "";
-  var label = T.mode === "rest" ? "Отдых" + (T.next ? " → " + T.next : "") : T.seg.l;
-  var tip = T.mode === "rest" ? "" : ((T.seg.t ? T.seg.t + " · " : "") + (T.segs[T.idx + 1] ? "далее: " + T.segs[T.idx + 1].l : "последний отрезок") + " · " + (T.idx + 1) + "/" + T.segs.length);
+  var label = T.mode === "rest" ? "Отдых" + (T.next ? " → " + T.next : "") : zt(T.seg.l);
+  var tip = T.mode === "rest" ? "" : ((T.seg.t ? zt(T.seg.t) + " · " : "") + (T.segs[T.idx + 1] ? "далее: " + T.segs[T.idx + 1].l : "последний отрезок") + " · " + (T.idx + 1) + "/" + T.segs.length);
   var btns = [];
   if(T.mode === "rest"){
     btns = [h("button", {type:"button", text:"−15 с", onclick:function(){ adjustRest(-15); }}), h("button", {type:"button", text:"+15 с", onclick:function(){ adjustRest(15); }}), h("button", {type:"button", text:"Пропустить", onclick:function(){ stopTimer(); }})];
@@ -545,15 +582,15 @@ var RIR_OPTS = [["", "запас"], ["6", "🟢 4+"], ["7", "🟢 3"], ["8", "�
 function rirGuide(open){
   return det("Как понять, что вес правильный: «запас повторов»", [plain([
     "<b>Запас</b> — сколько ещё повторов ты сделал бы чисто, если бы не остановился. Смотри, <b>как двигался вес в последних повторах</b>.",
-    "🟢 <b>4+</b> — все повторы одинаково быстрые, дыхание спокойное (RPE 6).",
-    "🟢 <b>3</b> — последний повтор чуть медленнее первого, техника идеальная (RPE 7). <b>Цель Фазы 1 и большинства подсобных упражнений.</b>",
-    "🟡 <b>2</b> — последние 1–2 повтора заметно медленнее, приходится собраться, техника не меняется (RPE 8). <b>Цель основных упражнений в Фазах 2–3.</b>",
-    "🟠 <b>1</b> — последний повтор «ползёт» (RPE 9). Только в контрольных тестах.",
-    "🔴 <b>0</b> — повтор встал или техника поплыла. Так не делаем.",
-    "Первый подход — проверка, как в плане: тяжелее цели — приложение сбросит 10%, легче — прибавит одну ступень (2,5 кг на руки и плечи, 5 кг на ноги и становую). Сам Ли: «работайте только с тем весом, с которым будете обращаться без излишнего напряжения» (с. 38)."
+    "🟢 <b>4+</b> — все повторы одинаково быстрые, дыхание спокойное. Разминочные подходы.",
+    "🟢 <b>3</b> — последний повтор чуть медленнее первого. <b>Разгрузка (волна Р).</b>",
+    "🟡 <b>2</b> — последние 1–2 повтора заметно медленнее, техника не меняется. <b>Волна Т (запас 2–3) и большинство упражнений Дня 4.</b>",
+    "🟠 <b>1</b> — последний повтор «ползёт», но чистый. <b>Статодинамика, руки, лёгкая и средняя волны (запас 1–2).</b>",
+    "🔴 <b>0</b> — повтор встал или техника поплыла. В программе так не делаем: при грыже отказ под весом — лишний риск.",
+    "Вес подставлен заранее: приложение оценивает максимум по прошлой записи и пересчитывает его под волну дня. Первый подход — проверка: тяжелее цели — сбрось 10%, легче — прибавь ступень. Следующие подходы приложение поправит само."
   ])], open);
 }
-function plain(list){ return h("ul", {class:"plain"}, list.map(function(t){ return h("li", {html:t}); })); }
+function plain(list){ return h("ul", {class:"plain"}, list.map(function(t){ return h("li", {html:zt(t)}); })); }
 function sec(title, kids, id){ return h("section", {class:"sec", id:id || null}, [h("h4", {text:title})].concat(kids)); }
 function det(title, kids, open, id){ var d = h("details", {class:"sec", id:id || null}, [h("summary", {text:title})].concat(kids)); if(open) d.open = true; return d; }
 function toast(t){ var el = h("div", {class:"toast", text:t}); document.body.appendChild(el); setTimeout(function(){ el.remove(); }, 2600); }
@@ -570,16 +607,16 @@ function isoToday(){ var t = new Date(); return t.getFullYear() + "-" + String(t
 
 /* ================= навигация ================= */
 var UI = {tab:"day", day:1};
-var lastDay = parseInt(lsGet("bl4-day") || "0", 10);
+var lastDay = parseInt(lsGet("bl5-day") || "0", 10);
 var hm = /^#d(\d{1,3})$/.exec(location.hash || "");
 if(hm && +hm[1] >= 1 && +hm[1] <= N) UI.day = +hm[1]; else if(todayIdx()) UI.day = todayIdx(); else if(lastDay >= 1 && lastDay <= N) UI.day = lastDay;
-function selectDay(d, scroll){ UI.day = d; UI.tab = "day"; lsSet("bl4-day", String(d)); render(); if(scroll) window.scrollTo(0, 0); }
+function selectDay(d, scroll){ UI.day = d; UI.tab = "day"; lsSet("bl5-day", String(d)); render(); if(scroll) window.scrollTo(0, 0); }
 document.querySelectorAll("#tabbar button").forEach(function(b){ b.addEventListener("click", function(){ UI.tab = b.dataset.tab; render(); window.scrollTo(0, 0); }); });
 window.addEventListener("hashchange", function(){ var m = /^#d(\d{1,3})$/.exec(location.hash || ""); if(m && +m[1] >= 1 && +m[1] <= N && +m[1] !== UI.day) selectDay(+m[1], true); });
 window.appBack = function(){ if(T){ stopTimer(); return true; } if(UI.tab !== "day"){ UI.tab = "day"; render(); return true; } return false; };
 
 function render(keepScroll){
-  var y = window.scrollY;
+  var y = window.scrollY; ZT = null;
   var app = document.getElementById("app"); app.innerHTML = "";
   document.querySelectorAll("#tabbar button").forEach(function(b){ b.setAttribute("aria-current", String(b.dataset.tab === UI.tab)); });
   if(UI.tab === "day") renderDayTab(app);
@@ -593,31 +630,31 @@ function render(keepScroll){
 /* ================= экран «День» ================= */
 function renderDayTab(app){
   var day = DAYS[UI.day - 1], t = todayIdx(), tdBlock = t ? DAYS[t-1].m : null, n = dayNum();
-  app.appendChild(h("div", {class:"row"}, [h("div", {class:"grow"}, [h("div", {class:"eyebrow", text:"Брюс Ли 4.0 · 180 дней · 2/2"})]),
+  app.appendChild(h("div", {class:"row"}, [h("div", {class:"grow"}, [h("div", {class:"eyebrow", text:"Брюс Ли 5.0 · позвоночник прежде всего · 20 недель · 2/2"})]),
     t && t !== UI.day ? h("button", {type:"button", class:"btn sm", text:"Сегодня", onclick:function(){ selectDay(t, true); }}) : null]));
   if(!startDate()){
-    app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", text:"Укажи дату первой смены — у дней появятся даты, а приложение будет открываться на сегодняшнем дне."}), h("button", {type:"button", class:"btn sm", text:"Указать в профиле", onclick:function(){ UI.tab = "profile"; render(); }})]));
+    app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", text:"Укажи дату первой смены новой программы — у дней появятся даты, а приложение будет открываться на сегодняшнем дне."}), h("button", {type:"button", class:"btn sm", text:"Указать в профиле", onclick:function(){ UI.tab = "profile"; render(); }})]));
   } else if(!S.profile.startOk){
-    app.appendChild(h("div", {class:"card alert", style:"margin-top:10px"}, [h("h3", {text:"Программа обновлена"}), h("p", {class:"small", text:"Теперь здесь 180 дней по упражнениям из книги Ли. День 1 сейчас — " + fmtDate(startDate(), true) + ". Если новая программа начинается с другой даты, поменяй её в профиле."}),
+    app.appendChild(h("div", {class:"card alert", style:"margin-top:10px"}, [h("h3", {text:"Программа обновлена"}), h("p", {class:"small", text:"Теперь здесь 20 недель программы «Позвоночник прежде всего». День 1 сейчас — " + fmtDate(startDate(), true) + ". Если программа начинается с другой даты, поменяй её в профиле."}),
       h("div", {class:"row"}, [h("button", {type:"button", class:"btn sm", text:"Оставить эту дату", onclick:function(){ S.profile.startOk = true; save("settings"); render(true); }}), h("button", {type:"button", class:"btn ghost sm", text:"Поменять дату", onclick:function(){ UI.tab = "profile"; render(); window.scrollTo(0, 0); }})])]));
   }
   if(n != null && n < 1){
-    app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", html:"До Дня 1 — " + (1 - n) + " дн. Это время <b>Цикла 0</b>: допуск врача, стартовые замеры и подготовка."}), h("button", {type:"button", class:"btn sm", text:"Открыть Цикл 0", onclick:function(){ UI.tab = "profile"; render(); setTimeout(function(){ var el = document.getElementById("c0card"); if(el) el.scrollIntoView({block:"start"}); }, 30); }})]));
+    app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", html:"До Дня 1 — " + (1 - n) + " дн. Это время <b>Цикла 0</b>: допуск врача, стартовые замеры и подбор контрольных весов."}), h("button", {type:"button", class:"btn sm", text:"Открыть Цикл 0", onclick:function(){ UI.tab = "profile"; render(); setTimeout(function(){ var el = document.getElementById("c0card"); if(el) el.scrollIntoView({block:"start"}); }, 30); }})]));
   }
   app.appendChild(h("div", {class:"ruler"}, BLOCKS.map(function(b){
-    return h("button", {type:"button", class:"cell" + (b.m === tdBlock ? " today" : ""), style:"--pc:" + PCOL[b.P], "aria-current":String(b.m === day.m), "aria-label":"Блок " + b.m + ", " + PH[b.P] + ", дни " + b.days[0] + "–" + b.days[1],
+    return h("button", {type:"button", class:"cell" + (b.m === tdBlock ? " today" : ""), style:"--pc:" + PCOL[b.P], "aria-current":String(b.m === day.m), "aria-label":"Блок " + b.m + ", " + PH[b.P] + ", Комплекс №" + b.cx + ", дни " + b.days[0] + "–" + b.days[1],
       onclick:function(){ selectDay(b.days[0]); }}, [String(b.m), b.test ? h("span", {class:"dlm"}) : null]);
   })));
-  app.appendChild(h("div", {class:"legend"}, [1,2,3].map(function(i){ return h("span", {style:"--c:" + PCOL[i], text:PH[i]}); }).concat([h("span", {text:"• в конце фазы — тесты", style:"--c:transparent"})])));
+  app.appendChild(h("div", {class:"legend"}, [1,2,3].map(function(i){ return h("span", {style:"--c:" + PCOL[i], text:PH[i]}); }).concat([h("span", {text:"• в блоке есть тесты", style:"--c:transparent"})])));
   var bl = BLOCKS[day.m - 1];
   app.appendChild(h("div", {class:"weekhead"}, [
-    h("div", {class:"row"}, [h("h2", {text:"Блок " + bl.m}), h("span", {class:"chip fill", style:"--c:" + PCOL[bl.P], text:PH[bl.P]}), h("span", {class:"muted small", text:"циклы " + bl.cycles[0] + "–" + bl.cycles[4] + " · дни " + bl.days[0] + "–" + bl.days[1]})]),
+    h("div", {class:"row"}, [h("h2", {text:"Блок " + bl.m}), h("span", {class:"chip fill", style:"--c:" + PCOL[bl.P], text:PH[bl.P]}), h("span", {class:"chip", text:"Комплекс №" + bl.cx}), h("span", {class:"muted small", text:"циклы " + bl.cycles[0] + "–" + bl.cycles[bl.cycles.length - 1] + " · дни " + bl.days[0] + "–" + bl.days[1]})]),
     h("p", {class:"muted small", text:bl.note})
   ]));
   var grid = h("div", {class:"cycgrid"});
   bl.cycles.forEach(function(c){
     var first = DAYS[(c - 1) * 4];
-    grid.appendChild(h("div", {class:"cyl" + (first.dl ? " dlc" : ""), title:first.dl ? "разгрузка" : "", text:"ц" + c}));
+    grid.appendChild(h("div", {class:"cyl" + (first.dl ? " dlc" : ""), title:"волна " + first.w + " — " + WNAME[first.w], html:"ц" + c + "<br>" + first.w}));
     for(var k = 0; k < 4; k++){
       (function(x){
         var r = S.days[key(x.d)], dt = dateOf(x.d), kd = KIND[x.k];
@@ -639,7 +676,7 @@ function stepsBlock(day, prefix, steps){
     var cb = h("input", {type:"checkbox", "aria-label":"Готово"}); cb.checked = on;
     var li;
     cb.addEventListener("change", function(){ r.steps[id] = cb.checked; save(key(day.d)); li.className = "step" + (cb.checked ? " on" : ""); });
-    var body = [h("div", {class:"st", html:st.t})];
+    var body = [h("div", {class:"st", html:zt(st.t)})];
     if(st.ramp){ var rp = rampFor(day); if(rp) body.push(h("div", {class:"small", text:"Сегодня: " + rp + "."})); }
     if(st.segs){
       var total = st.segs.reduce(function(a, s){ return a + s.s; }, 0);
@@ -653,20 +690,22 @@ function stepsBlock(day, prefix, steps){
 function renderDay(day){
   var col = day.dl ? "var(--dl)" : PCOL[day.P], dt = dateOf(day.d), r = rec(day.d), secs = secsOf(day);
   var card = h("article", {class:"day", style:"--pc:" + col});
-  var chips = [chip(PH[day.P], PCOL[day.P], true)];
-  if(day.dl) chips.push(chip("Разгрузка", "var(--dl)")); if(day.test) chips.push(chip("Тесты", "var(--warn)")); if(day.diet) chips.push(chip("Диет-брейк", "var(--ok)"));
-  var shift = day.k === "C" || day.k === "R";
+  var chips = [chip(PH[day.P], PCOL[day.P], true), chip("Комплекс №" + day.cx), chip("Волна " + day.w + " — " + WNAME[day.w], day.dl ? "var(--dl)" : null)];
+  if(day.test) chips.push(chip("Тесты", "var(--warn)"));
+  var shift = day.k === "H1" || day.k === "H2";
   var startBtn = h("button", {type:"button", class:"btn big", text:r.done ? "День отмечен ✓" : (shift ? "Начать после смены" : "Начать тренировку"), onclick:function(){
     touch(); var el = document.getElementById(shift ? "sec-main" : "sec-warm") || document.getElementById("sec-ex");
     if(el){ if(el.tagName === "DETAILS") el.open = true; el.scrollIntoView({block:"start", behavior:"smooth"}); }
     toast("Экран не будет гаснуть во время тренировки"); }});
   card.appendChild(h("div", {class:"day-top"}, [
     h("div", {class:"big"}, [h("h2", {text:"День " + day.d}), h("span", {class:"muted small", text:(dt ? fmtDate(dt, true) + " · " : "") + "блок " + day.m + " · цикл " + day.c + " · " + whereOf(day)})]),
-    h("div", {class:"row"}, chips), h("h3", {text:day.title}), h("p", {class:"goal", text:day.goal}),
+    h("div", {class:"row"}, chips), h("h3", {text:day.title}), h("p", {class:"goal", text:zt(day.goal)}),
     h("div", {class:"muted small", text:"Время: " + day.time + (day.pre ? ". " + day.pre : "")}), startBtn
   ]));
+  var ready = secs.filter(function(s){ return s.t === "ready"; })[0];
+  if(ready && (r.color === "y" || r.color === "r")) card.appendChild(h("div", {class:"sec"}, [h("p", {class:"banner", style:"--c:" + (r.color === "y" ? "var(--warn)" : "var(--bad)"), text:r.color === "y" ? ready.y : ready.r})]));
   secs.forEach(function(s, i){ card.appendChild(renderSec(day, s, i)); });
-  card.appendChild(sec("Питание и сон", [plain([day.food, shift ? "Сон — главный инструмент восстановления: 7–9 ч за сутки, можно в два приёма; экран убрать за 45 мин, в спальне темно и прохладно. После ночной смены — домой в тёмных очках и сразу спать." : "Сон 7–9 ч, подъём в одно время ±1 ч. Тяжёлая работа — не позже чем за 3 ч до сна."])]));
+  card.appendChild(sec("Питание и сон", [plain(day.food || [])]));
   card.appendChild(journal(day));
   card.appendChild(h("div", {class:"nav"}, [
     h("button", {type:"button", class:"btn ghost", disabled:day.d === 1 ? true : null, onclick:function(){ selectDay(day.d - 1, true); }, text:"← День " + Math.max(1, day.d - 1)}),
@@ -675,8 +714,18 @@ function renderDay(day){
   return card;
 }
 
+function readySec(day, s){
+  var r = rec(day.d), cur = r.color || "";
+  function mk(code, label, col){ return h("button", {type:"button", "aria-pressed":String(cur === code), style:"--c:" + col, text:label, onclick:function(){ r.color = (r.color === code ? "" : code); save(key(day.d)); render(true); }}); }
+  var how = h("details", {}, [h("summary", {class:"small", text:s.mode === "gym" ? "Как выбрать цвет: пульс, сон, боль, самочувствие" : "Как выбрать цвет вечера"}), plain(s.lines)]);
+  var kids = [h("div", {class:"colors"}, [mk("g", "🟢 Зелёный", "var(--ok)"), mk("y", "🟡 Жёлтый", "var(--warn)"), mk("r", "🔴 Красный", "var(--bad)")]), how];
+  if(cur === "g") kids.push(h("p", {class:"small muted", text:"Зелёный — по плану."}));
+  return sec(s.title + (cur ? " · " + {g:"зелёный", y:"жёлтый", r:"красный"}[cur] : " — выбери цвет дня"), kids);
+}
+
 function renderSec(day, s, i){
   var prefix = s.id || ("s" + i);
+  if(s.t === "ready") return readySec(day, s);
   if(s.t === "list") return s.collapse ? det(s.title, [plain(s.lines)]) : sec(s.title, [plain(s.lines)]);
   if(s.t === "steps"){
     var kids = [stepsBlock(day, prefix, s.steps)]; if(s.foot) kids.push(h("p", {class:"foot", text:s.foot}));
@@ -723,15 +772,17 @@ function gateSec(day, s, prefix){
 /* таймер-карточка */
 function condCard(day, cd, sid){
   var r = rec(day.d), cr = r.cond[sid] || {};
-  var list = h("div", {class:"seglist", "data-seq":sid}, cd.segs.map(function(s){ return h("div", {}, [h("span", {text:s.l}), h("span", {class:"num", text:s.s ? fmtT(s.s) : "по готовности"})]); }));
+  var list = h("div", {class:"seglist", "data-seq":sid}, cd.segs.map(function(s){ return h("div", {}, [h("span", {text:zt(s.l) + (s.t ? " · " + zt(s.t) : "")}), h("span", {class:"num", text:s.s ? fmtT(s.s) : "по готовности"})]); }));
   var start = h("button", {type:"button", class:"btn", text:cr.done ? "Сделано ✓ · запустить снова" : "▶ Запустить таймер", onclick:function(){
-    startSeq(cd.segs, cd.title, function(){ var x = rec(day.d); x.cond[sid] = {done:true}; save(key(day.d)); }, null);
+    startSeq(cd.segs, zt(cd.title), function(){ var x = rec(day.d); x.cond[sid] = {done:true}; save(key(day.d)); }, null);
     T.sid = sid; updateSegLists();
   }});
   var mark = cr.done ? null : h("button", {type:"button", class:"btn ghost", text:"Отметить без таймера", onclick:function(){ var x = rec(day.d); x.cond[sid] = {done:true}; save(key(day.d)); render(true); }});
+  var warnY = (rec(day.d).color === "y" && cd.kind === "int") ? h("p", {class:"banner", style:"--c:var(--warn)", text:"Жёлтый день: вместо интервалов — 20 минут ровной зоны 2."}) : null;
   return h("div", {class:"cond"}, [
-    h("div", {class:"ch"}, [h("span", {text:cd.title}), h("span", {class:"muted num", text:"≈ " + cd.mins + " мин"})]),
-    cd.lines && cd.lines.length ? h("ul", {}, cd.lines.map(function(l){ return h("li", {text:l}); })) : null,
+    h("div", {class:"ch"}, [h("span", {text:zt(cd.title)}), h("span", {class:"muted num", text:"≈ " + cd.mins + " мин"})]),
+    warnY,
+    cd.lines && cd.lines.length ? h("ul", {}, cd.lines.map(function(l){ return h("li", {text:zt(l)}); })) : null,
     h("div", {class:"row"}, [start, mark]), list
   ]);
 }
@@ -744,7 +795,7 @@ function exList(day, items, prefix){
     var base = it.lab.replace(/[ab]$/, ""), paired = /[ab]$/.test(it.lab);
     if(paired && cur && cur.base === base){ cur.box.appendChild(exCard(day, it)); return; }
     var box = h("div", {class:"group" + (paired ? "" : " single")});
-    if(paired) box.appendChild(h("div", {class:"gl", text:"Пара " + base + ": " + base + "b — сразу после подхода " + base + "a, отдых — после пары"}));
+    if(paired) box.appendChild(h("div", {class:"gl", text:it.spec.alt ? "Пара " + base + ": чередуй " + base + "a и " + base + "b — после каждого подхода короткий отдых и второе упражнение" : "Пара " + base + ": " + base + "b — сразу после подхода " + base + "a, отдых — после пары"}));
     box.appendChild(exCard(day, it)); wrap.appendChild(box);
     cur = paired ? {base:base, box:box} : null;
   });
@@ -763,7 +814,9 @@ function rowTarget(sp, row){
   var per = sp.per ? " " + sp.per : "";
   if(row.kind === "amrap") return row.off ? "макс − " + row.off : "максимум";
   if(row.kind === "round") return "";
-  if(sp.unit === "sec") return (row.n ? row.n + " × " : "") + (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " с" + (sp.lr ? " каждой стороной" : "") + per;
+  if(sp.unit === "sec") return (row.n ? row.n + " × " : "") + (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " с" + (sp.lr ? " на сторону" : "") + per;
+  if(row.cl) return row.cl + " повт." + (row.rpe ? " · запас " + rirTxt(row.rpe) : "");
+  if(row.half) return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повт." + per + " · ½ амплитуды, запас 1";
   return (row.lo !== row.hi ? row.lo + "–" + row.hi : row.hi) + " повт." + per + (row.rpe ? " · запас " + rirTxt(row.rpe) : "");
 }
 function firstOpenRow(arr, sp){ for(var i = 0; i < sp.rows.length; i++){ if(!arr[i] || !arr[i].done) return i; } return 0; }
@@ -772,7 +825,7 @@ function itemIndex(day, it){ return itemsOf(day).indexOf(it); }
 function exCard(day, it){
   var e = EX[it.ex], sp = it.spec, r = rec(day.d), k = setKey(it), idx = itemIndex(day, it);
   var arr = r.sets[k] || []; r.sets[k] = arr;
-  var wtUnit = {bar:"кг", db:"кг гантель", plate:"кг блин", belt:"кг на поясе", roller:"кг груз"}[sp.wt] || "";
+  var wtUnit = {bar:"кг с грифом", db:"кг гантель", sm:"кг блинов", pl:"кг", mc:"кг", kb:"кг гиря", gv:"кг противовеса"}[sp.wt] || "";
   var hasW = !!WEIGHTED[sp.wt] && sp.rows.some(function(x){ return x.pw !== 0; });
   var hasRpe = sp.rows.some(function(x){ return x.rpe; }) && sp.unit === "reps";
   var card = h("div", {class:"ex", id:"ex-" + day.d + "-" + idx});
@@ -780,23 +833,31 @@ function exCard(day, it){
   if(s0 && s0.w != null) sugg = h("div", {class:"sugg"}, [h("span", {text:"Вес сегодня: "}), h("b", {text:fkg(s0.w) + " кг"}), h("div", {class:"hint", text:s0.why})]);
   else if(s0 && s0.why) sugg = h("div", {class:"sugg"}, [h("div", {class:"hint", text:s0.why})]);
   card.appendChild(h("div", {class:"ex-h"}, [h("span", {class:"lab", text:it.lab}), h("span", {class:"ex-name"}, [e.name, it.pg ? h("span", {class:"pg", text:it.pg}) : null]), h("span", {class:"sets", text:it.sets})]));
-  if(it.load) card.appendChild(h("div", {class:"ex-load", text:it.load}));
+  if(it.load) card.appendChild(h("div", {class:"ex-load", text:zt(it.load)}));
   if(it.rest) card.appendChild(h("div", {class:"ex-rest", text:"Отдых: " + it.rest}));
-  if(it.note) card.appendChild(h("div", {class:"ex-note", text:it.note}));
+  if(it.note) card.appendChild(h("div", {class:"ex-note", text:zt(it.note)}));
   if(sugg) card.appendChild(sugg);
   var list = h("div", {class:"setlist"});
   sp.rows.forEach(function(row, i){ list.appendChild(setRow(day, it, idx, i, row, arr, hasW, hasRpe, wtUnit)); });
   card.appendChild(list);
   var tech = [h("p", {}, [h("b", {text:"Техника. "}), e.how])];
   if(e.err) tech.push(h("p", {}, [h("b", {text:"Частая ошибка. "}), e.err]));
-  if(e.alt) tech.push(h("p", {}, [h("b", {text:"Если нет снаряда или больно. "}), e.alt]));
+  if(e.alt) tech.push(h("p", {}, [h("b", {text:"Замена. "}), e.alt]));
+  if(e.page) tech.push(h("p", {class:"hint", text:e.page}));
   card.appendChild(h("details", {}, [h("summary", {text:"Как делать"}), h("div", {}, tech)]));
   return card;
 }
 
 function timedSegs(it, row){
   var nm = EX[it.ex].name, sec = row.hi || 0, segs = [{l:"Приготовься", s:5, k:"rest"}];
-  if(row.n){ for(var i = 0; i < row.n; i++){ segs.push({l:nm + " " + (i + 1) + "/" + row.n, s:sec, k:"work"}); if(i < row.n - 1) segs.push({l:"Отпусти", s:row.rr || 5, k:"rest"}); } return segs; }
+  if(row.n){
+    for(var i = 0; i < row.n; i++){
+      if(it.spec.lr){ segs.push({l:nm + " — левая " + (i + 1) + "/" + row.n, s:sec, k:"work"}); segs.push({l:"Смена стороны", s:3, k:"rest"}); segs.push({l:nm + " — правая " + (i + 1) + "/" + row.n, s:sec, k:"work"}); }
+      else segs.push({l:nm + " " + (i + 1) + "/" + row.n, s:sec, k:"work"});
+      if(i < row.n - 1) segs.push({l:"Отпусти", s:row.rr || 5, k:"rest"});
+    }
+    return segs;
+  }
   var lbl = row.lbl ? row.lbl : nm;
   if(it.spec.lr) return segs.concat([{l:lbl + " — левая", s:sec, k:"work"}, {l:"Смена стороны", s:5, k:"rest"}, {l:lbl + " — правая", s:sec, k:"work"}]);
   return segs.concat([{l:lbl, s:sec, k:"work"}]);
@@ -842,6 +903,15 @@ function markDone(day, it, idx, i, w, r, rpe, fromTimer){
   save(key(day.d)); touch();
   var sp = it.spec, items = itemsOf(day);
   var partner = partnerOf(day, it);
+  if(sp.alt && partner){
+    var parr2 = rr.sets[setKey(partner)] || [], pr2 = firstOpenRow(parr2, partner.spec);
+    if(!(parr2[pr2] && parr2[pr2].done)){
+      var s2 = suggest(day, partner, pr2), prow = partner.spec.rows[pr2] || {};
+      var nt = EX[partner.ex].name + ", подход " + (pr2 + 1) + "/" + partner.spec.rows.length + (s2 && s2.w ? " · " + fkg(s2.w) + " кг" : "") + (prow.hi && partner.spec.unit === "reps" ? " × " + prow.hi : "");
+      if(sp.rest > 0) startRest(sp.rest, EX[it.ex].name, nt); else toast("Дальше: " + nt);
+      render(true); highlight(day.d, items.indexOf(partner)); return;
+    }
+  }
   if(sp.pairNext && partner && i >= (sp.pairFrom || 0)){
     var parr = rr.sets[setKey(partner)] || [], pr = firstOpenRow(parr, partner.spec);
     if(!(parr[pr] && parr[pr].done)){ toast("Сразу к " + partner.lab + ": " + EX[partner.ex].name); render(true); highlight(day.d, items.indexOf(partner)); return; }
@@ -877,33 +947,35 @@ function journal(day){
 function dayStats(day){
   var r = S.days[key(day.d)]; if(!r || !r.sets) return "";
   var n = 0, tot = 0, ton = 0;
-  itemsOf(day).forEach(function(it){ tot += it.spec.rows.length; doneSets(r.sets[setKey(it)]).forEach(function(s){ n++; if(s.w && s.r && it.spec.wt === "bar") ton += s.w * s.r; }); });
+  itemsOf(day).forEach(function(it){ tot += it.spec.rows.length; doneSets(r.sets[setKey(it)]).forEach(function(s){ n++; if(s.w && s.r && WEIGHTED[it.spec.wt] && it.spec.wt !== "gv" && it.spec.unit === "reps") ton += s.w * s.r * (it.spec.per ? 2 : 1); }); });
   if(!tot) return "";
-  return "Сделано подходов: " + n + " из " + tot + (ton ? " · тоннаж со штангой ≈ " + Math.round(ton).toLocaleString("ru-RU") + " кг" : "");
+  return "Сделано подходов: " + n + " из " + tot + (ton ? " · тоннаж ≈ " + Math.round(ton).toLocaleString("ru-RU") + " кг" : "");
 }
-
 /* ================= прогресс ================= */
-var LIFTS = ["squat", "deadlift", "bench", "milpress"];
+var LIFTS = ["chest_mc", "incline_mc", "bench_bb", "tbar_cs", "lever_row2", "latpd_n", "hipthrust_sm"];
 function renderProgress(app){
   var panel = h("section", {class:"panel"}, [h("h2", {text:"Прогресс"})]);
   var doneDays = Object.keys(S.days).filter(function(k){ return S.days[k].done; }).length;
   var passed = todayIdx() || 0;
   var kp = [h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Дней отмечено"}), h("b", {text:String(doneDays)}), h("span", {class:"tiny muted", text:passed ? "из " + passed + " прошедших" : "из " + N})])];
   LIFTS.forEach(function(ex){
+    if(!EX[ex]) return;
     var pts = e1Series(ex); if(!pts.length) return;
     var last = pts[pts.length-1], first = pts[0];
     kp.push(h("div", {class:"kpi"}, [h("span", {class:"small muted", text:EX[ex].name}), h("b", {text:fkg(Math.round(last.v)) + " кг"}), h("span", {class:"tiny muted", text:"оценка максимума" + (pts.length > 1 ? " · " + (last.v >= first.v ? "+" : "") + fkg(Math.round(last.v - first.v)) + " кг" : "")})]));
   });
   panel.appendChild(h("div", {class:"kpis"}, kp));
-  LIFTS.forEach(function(ex){ var pts = e1Series(ex); if(pts.length > 1) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:EX[ex].name + " — оценка максимума, кг"}), lineChart(pts, "кг")])); });
-  if(kp.length < 2) panel.appendChild(h("div", {class:"card"}, [h("p", {class:"muted", text:"Графики появятся после первых записанных подходов в приседаниях, становой, жиме и «выжимании штанги»: приложение оценивает максимум по весу, повторам и запасу."})]));
+  LIFTS.forEach(function(ex){ if(!EX[ex]) return; var pts = e1Series(ex); if(pts.length > 1) panel.appendChild(h("div", {class:"card"}, [h("h3", {text:EX[ex].name + " — оценка максимума, кг"}), lineChart(pts, "кг")])); });
+  if(kp.length < 2) panel.appendChild(h("div", {class:"card"}, [h("p", {class:"muted", text:"Графики появятся после первых записанных подходов в главных упражнениях: тренажёры жима, жим штанги, тяга Т-грифа, рычажная и вертикальная тяга, hip thrust. Приложение оценивает максимум по весу, повторам и запасу."})]));
   panel.appendChild(testsTable());
   var bw = h("input", {type:"text", inputmode:"decimal", id:"b-w", placeholder:"кг"}), ws = h("input", {type:"text", inputmode:"decimal", id:"b-ws", placeholder:"см"}), dtI = h("input", {type:"date", id:"b-dt"}); dtI.value = isoToday();
   var add = h("button", {type:"button", class:"btn", text:"Добавить", onclick:function(){ var w = pnum(bw.value), x = pnum(ws.value); if(w == null && x == null){ toast("Впиши вес или талию"); return; } S.body.push({date:dtI.value || isoToday(), w:w, waist:x}); S.body.sort(function(a, b){ return a.date < b.date ? -1 : 1; }); save("body"); render(true); }});
-  var bodyCard = h("div", {class:"card"}, [h("h3", {text:"Вес и талия"}), h("p", {class:"small muted", text:"Вес — утром натощак, смотри на среднее за 7 дней. Цель плана: около −10 кг за 6 месяцев и талия меньше 87 см."}),
+  var bodyCard = h("div", {class:"card"}, [h("h3", {text:"Вес и талия"}), h("p", {class:"small muted", text:"Вес — утром натощак, смотри на среднее за 7 дней; талия — раз в неделю утром на уровне пупка. Ориентир: −0,4–0,6 кг в неделю и −2–4 см талии за первый месяц. Раз в 2 недели сверяй темп и поправляй калории на 150 ккал."}),
     h("div", {class:"fields"}, [h("div", {class:"field"}, [h("label", {for:"b-dt", text:"Дата"}), dtI]), h("div", {class:"field"}, [h("label", {for:"b-w", text:"Вес, кг"}), bw]), h("div", {class:"field"}, [h("label", {for:"b-ws", text:"Талия, см"}), ws])]), h("div", {class:"row"}, [add])]);
   var wpts = S.body.filter(function(b){ return b.w != null; }).map(function(b, i){ return {d:i + 1, v:b.w, lbl:b.date}; });
   if(wpts.length > 1) bodyCard.appendChild(lineChart(wpts, "кг", true));
+  var tpts = S.body.filter(function(b){ return b.waist != null; }).map(function(b, i){ return {d:i + 1, v:b.waist, lbl:b.date}; });
+  if(tpts.length > 1) bodyCard.appendChild(lineChart(tpts, "см", true));
   if(S.body.length){
     bodyCard.appendChild(h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Дата"}), h("th", {class:"r", text:"Вес"}), h("th", {class:"r", text:"Талия"}), h("th", {text:""})])]),
       h("tbody", {}, S.body.slice().reverse().slice(0, 30).map(function(b){ return h("tr", {}, [h("td", {text:b.date}), h("td", {class:"r", text:b.w != null ? fkg(b.w) : "—"}), h("td", {class:"r", text:b.waist != null ? fkg(b.waist) : "—"}),
@@ -914,9 +986,9 @@ function renderProgress(app){
 }
 function testsTable(){
   var cols = [{t:"Цикл 0", get:function(id){ return S.c0.tests[id]; }}];
-  [15, 30, 45].forEach(function(c){ cols.push({t:"Дни " + (4 * c - 3) + "–" + (4 * c), get:function(id){ for(var d = 4 * c - 3; d <= 4 * c; d++){ var r = S.days[key(d)]; if(r && r.tests && r.tests[id]) return r.tests[id]; } return ""; }}); });
+  (DATA.testCycles || [18, 35]).forEach(function(c){ cols.push({t:"Цикл " + c, get:function(id){ for(var d = 4 * c - 3; d <= 4 * c; d++){ var r = S.days[key(d)]; if(r && r.tests && r.tests[id]) return r.tests[id]; } return ""; }}); });
   var any = DATA.tests.some(function(t){ return cols.some(function(c){ return c.get(t.id); }); });
-  var card = h("div", {class:"card"}, [h("h3", {text:"Контрольные тесты"}), h("p", {class:"small muted", text:"Цикл 0 заполняешь в профиле, остальные столбцы — в тестовые дни: 57–60, 117–120 и 177–180."})]);
+  var card = h("div", {class:"card"}, [h("h3", {text:"Контрольные тесты"}), h("p", {class:"small muted", text:"Цикл 0 заполняешь в профиле до старта, остальные столбцы — в тестовые дни 71 и 139."})]);
   if(!any){ card.appendChild(h("p", {class:"small", text:"Пока пусто. Начни с Цикла 0 — стартовые замеры в профиле."})); return card; }
   card.appendChild(h("div", {class:"tbl"}, [h("table", {}, [h("thead", {}, [h("tr", {}, [h("th", {text:"Тест"})].concat(cols.map(function(c){ return h("th", {class:"r", text:c.t}); })))]),
     h("tbody", {}, DATA.tests.map(function(t){ return h("tr", {}, [h("td", {text:t.name})].concat(cols.map(function(c){ return h("td", {class:"r", text:c.get(t.id) || "—"}); }))); }))])]));
@@ -926,7 +998,7 @@ function e1Series(ex){
   var out = [];
   for(var d = 1; d <= N; d++){
     var r = S.days[key(d)]; if(!r || !r.sets) continue;
-    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex || it.spec.light) return; var e = e1rmOf({it:it, sets:r.sets[setKey(it)] || []}); if(e) out.push({d:d, v:e}); });
+    itemsOf(DAYS[d-1]).forEach(function(it){ if(it.ex !== ex) return; var e = e1rmOf({it:it, sets:r.sets[setKey(it)] || []}); if(e) out.push({d:d, v:e}); });
   }
   return out;
 }
@@ -940,7 +1012,7 @@ function lineChart(pts, unit, byIndex){
   svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("class", "chart"); svg.setAttribute("role", "img");
   function el(t, a, txt){ var e = document.createElementNS(ns, t); Object.keys(a).forEach(function(k){ e.setAttribute(k, a[k]); }); if(txt != null) e.textContent = txt; svg.appendChild(e); return e; }
   var steps = 4; for(var i = 0; i <= steps; i++){ var v = y0 + (y1 - y0) * i / steps; el("line", {x1:L, x2:W - R, y1:Y(v), y2:Y(v), stroke:"var(--line)", "stroke-width":1}); el("text", {x:L - 6, y:Y(v) + 4, "text-anchor":"end", "font-size":11, fill:"var(--muted)"}, fkg(Math.round(v))); }
-  if(!byIndex) [1, 60, 120, 180].forEach(function(d){ el("text", {x:X(d), y:H - 8, "text-anchor":d === 1 ? "start" : d === 180 ? "end" : "middle", "font-size":11, fill:"var(--muted)"}, "д. " + d); });
+  if(!byIndex) [1, 49, 97, N].forEach(function(d){ el("text", {x:X(d), y:H - 8, "text-anchor":d === 1 ? "start" : d === N ? "end" : "middle", "font-size":11, fill:"var(--muted)"}, "д. " + d); });
   else { el("text", {x:L, y:H - 8, "font-size":11, fill:"var(--muted)"}, pts[0].lbl || ""); el("text", {x:W - R, y:H - 8, "text-anchor":"end", "font-size":11, fill:"var(--muted)"}, pts[pts.length-1].lbl || ""); }
   var dd = pts.map(function(p, i){ return (i ? "L" : "M") + X(byIndex ? i + 1 : p.d).toFixed(1) + " " + Y(p.v).toFixed(1); }).join(" ");
   el("path", {d:dd, fill:"none", stroke:"var(--p1)", "stroke-width":2.5, "stroke-linejoin":"round"});
@@ -952,7 +1024,7 @@ function lineChart(pts, unit, byIndex){
 /* ================= техника ================= */
 function renderRef(app){
   var groups = {}; Object.keys(EX).forEach(function(k){ var g = EX[k].group; (groups[g] = groups[g] || []).push(k); });
-  var panel = h("section", {class:"panel"}, [h("h2", {text:"Техника упражнений"}), h("p", {class:"muted", text:"Все упражнения программы — из книги «Брюс Ли: Искусство выражения человеческого тела»; «с. N» — страница книги. Не из книги только то, что так и помечено."})]);
+  var panel = h("section", {class:"panel"}, [h("h2", {text:"Техника упражнений"}), h("p", {class:"muted", text:"Все упражнения программы: техника, частая ошибка и замена. Метка под названием — место в светофоре безопасности: зелёный список или жёлтый с поправкой. Красного списка в программе нет."})]);
   DATA.groups.forEach(function(g){
     if(!groups[g]) return;
     panel.appendChild(h("h3", {text:g, style:"font-family:var(--f-body);font-size:18px"}));
@@ -974,30 +1046,42 @@ function selectField(id, label, value, opts, onchange){
   return h("div", {class:"field"}, [h("label", {for:id, text:label}), s]);
 }
 var C0_CHECK = [
-  "Терапевт или врач спортивной медицины: осмотр, давление, ЭКГ покоя.",
-  "Нагрузочный тест (велоэргометрия или тредмил) — если есть одышка или дискомфорт в груди при нагрузке, давление выше 140/90, инфаркт или внезапная смерть у отца или брата до 55 лет, у матери или сестры до 65 лет.",
-  "Анализы: общий анализ крови, глюкоза и HbA1c, липидный профиль, АЛТ/АСТ, креатинин, ТТГ, ферритин, витамин D, общий тестостерон утром.",
-  "Ортопед или реабилитолог — если сейчас болят плечи, поясница или колени.",
+  "Невролог или вертебролог (лучше со свежей МРТ) и физиотерапевт: покажи план. В первую очередь согласуй hip thrust, сплит-приседания и зашагивания, интервалы в зоне 5 и тягу нижнего блока между ног.",
+  "Терапевт или кардиолог: давление и ЭКГ покоя; для интервалов 4 × 4 мин с выходом в зону 5 — нагрузочный тест по решению врача.",
   "Пульсометр (лучше нагрудный), тонометр, весы, сантиметровая лента.",
-  "Скакалка, коврик, гимнастическая палка, бинты 3,5–4,5 м и перчатки 12–16 унций.",
-  "Для дома: ступенька 30 см для степ-теста, стул или скамья около 43 см для «шагания», запястный вращатель (палка, шнур 1–1,5 м, блин 5 кг), кистевой эспандер.",
-  "Зал: штанга и силовая рама, скамья и скамья для гиперэкстензии, гантели до 40 кг, турник, тяжёлая груша, велотренажёр и дорожка; лёгкая груша, резина средней жёсткости, пояс для отягощения и медбол 4–6 кг (с Фазы 2); трэп-гриф — если есть.",
-  "Напиши свою «главную цель»: 3–5 предложений о том, кем ты будешь через 6 месяцев."
+  "Дома: вертикальный велотренажёр с максимально поднятым рулём, набор жгутов, коврик, стул или диван для позы 90/90.",
+  "Зал: найди и настрой тренажёры зелёного списка — Т-гриф с упором грудью, рычажную тягу, блоки, тренажёры горизонтального и наклонного жима, гравитрон, горизонтальный велотренажёр. Запиши настройки сидений.",
+  "Бинты и перчатки для мешка.",
+  "Напиши цель на 20 недель: 3–5 предложений о том, зачем тебе это и как ты будешь себя чувствовать."
+];
+var RED_FLAGS = [
+  "<b>Срочно, в тот же день — в приёмное отделение:</b> онемение в промежности, вокруг ануса, на внутренней поверхности бёдер; затруднённое начало мочеиспускания, задержка или недержание мочи или кала; новые нарушения эрекции; слабость в обеих ногах.",
+  "<b>В течение нескольких дней — к неврологу:</b> боль, отдающая в обе ноги или перешедшая с одной на обе; новая или усиливающаяся боль ниже колена, онемение или слабость в ноге; при шейных протрузиях — боль, онемение или слабость в руке, неловкость кистей; ночная боль в покое, лихорадка, необъяснимое похудание.",
+  "<b>Немедленно прекратить нагрузку:</b> давящая боль в груди, необычная одышка, перебои в сердце, головокружение или предобморочное состояние.",
+  "<b>Боль во время упражнения:</b> 0–2 из 10 — продолжаем; 3–4 — меньше вес или амплитуда; 5 и выше — упражнение прекращаем."
 ];
 function renderProfile(app){
   var P = S.profile;
   var panel = h("section", {class:"panel"}, [h("h2", {text:"Профиль и настройки"})]);
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Старт и цифры"}),
     h("div", {class:"fields"}, [
-      field("p-start", "Дата первой смены (день 1)", P.start, function(v){ P.start = v; P.startOk = true; save("settings"); var t = todayIdx(); if(t) UI.day = t; render(true); }, {type:"date"}),
+      field("p-start", "Дата первой смены (День 1)", P.start, function(v){ P.start = v; P.startOk = true; save("settings"); var t = todayIdx(); if(t) UI.day = t; render(true); }, {type:"date"}),
+      field("p-rhr", "Пульс покоя, уд/мин", P.rhr, function(v){ P.rhr = v; ZT = null; save("settings"); render(true); }, {inputmode:"numeric"}),
+      field("p-age", "Возраст", P.age, function(v){ P.age = v; ZT = null; save("settings"); render(true); }, {inputmode:"numeric"}),
+      field("p-hrmax", "ЧСС макс, если измерена", P.hrmax, function(v){ P.hrmax = v; ZT = null; save("settings"); render(true); }, {inputmode:"numeric"}),
       field("p-bench", "Жим лёжа: лучший результат, кг", P.bench, function(v){ P.bench = v; save("settings"); }, {inputmode:"decimal"}),
       field("p-bw", "Вес тела, кг", P.bw, function(v){ P.bw = v; save("settings"); }, {inputmode:"decimal"})
     ]),
-    h("p", {class:"small muted", text:"Лучший жим нужен для процентов в жиме на скамье (Фазы 2–3). Остальные веса заданы планом: приложение подставляет их и подстраивает под тебя по записанным подходам."})
+    h("p", {class:"small muted", text:"Пульс покоя — среднее за 3 утра лёжа. По нему считаются все пульсовые зоны в тренировках. Лучший жим нужен только для первой подсказки в жиме штанги; остальные веса приложение узнаёт из твоих записей."})
   ]));
+  ZT = null; var Z = zoneTable();
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Пульсовые зоны"}),
+    h("p", {class:"small muted", text:"ЧСС макс " + Z.mx + (pnum(P.hrmax) ? " (измерена)" : " (формула Танаки: 208 − 0,7 × возраст)") + ", пульс покоя " + Z.rhr + (pnum(P.rhr) ? "" : " — пример, впиши свой") + ". Зоны по Карвонену подставляются во все тренировки и таймеры."}),
+    h("div", {class:"tbl ztbl"}, [h("table", {}, [h("tbody", {}, DATA.zones.map(function(z){ return h("tr", {}, [h("td", {text:z.name}), h("td", {class:"r", text:Z[z.id]})]); }).concat([h("tr", {}, [h("td", {text:"Потолок — выше не заходим"}), h("td", {class:"r", text:Z.CAP})])]))])])]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Шаг весов в твоём зале"}),
-    h("div", {class:"fields"}, [selectField("p-sdb", "Гантели, шаг", P.stepDb, [["1","1 кг"],["2","2 кг"],["2.5","2,5 кг"]], function(v){ P.stepDb = +v; save("settings"); })]),
-    h("p", {class:"small muted", text:"Штанга — шаг 2,5 кг (по 1,25 с каждой стороны)."})]));
+    h("div", {class:"fields"}, [selectField("p-sdb", "Гантели, шаг", P.stepDb, [["1","1 кг"],["2","2 кг"],["2.5","2,5 кг"]], function(v){ P.stepDb = +v; save("settings"); }),
+      selectField("p-smc", "Тренажёры со стеком и блоки, шаг", P.stepMc || 5, [["2.5","2,5 кг"],["5","5 кг"],["7","7 кг"]], function(v){ P.stepMc = +v; save("settings"); })]),
+    h("p", {class:"small muted", text:"Штанга, Смит и тренажёры на блинах — шаг 2,5 кг; гири — 4 кг."})]));
   var watchCard = h("div", {class:"card"}, [h("h3", {text:"Сигналы и часы"}),
     h("div", {class:"fields"}, [
       selectField("p-sound", "Звук на телефоне", P.sound ? "1" : "0", [["1","Включён"],["0","Выключен"]], function(v){ P.sound = v === "1"; save("settings"); }),
@@ -1016,35 +1100,31 @@ function renderProfile(app){
       "В Huawei Health: Устройства → твои часы → Уведомления → включи уведомления и отметь в списке это приложение.",
       "В настройках телефона: Приложения → это приложение → Батарея → разреши работу в фоне и автозапуск. Иначе система может задерживать сигналы, когда экран выключен.",
       "Снова нажми «Проверить сигнал» и выключи экран: через 5 с часы должны завибрировать с текстом «Проверка сигнала».",
-      "На тренировке запускай на часах нужный режим — часы пишут пульс, а сигналы отдыха и раундов приходят из приложения."
+      "На тренировке запускай на часах нужный режим — часы пишут пульс, а сигналы отдыха и интервалов приходят из приложения."
     ].map(function(t, i){ return h("li", {class:"step"}, [h("span", {class:"lab", text:String(i + 1)}), h("div", {class:"st small", text:t})]); })));
   } else {
     watchCard.appendChild(h("p", {class:"small", text:"В веб-версии сигнал звучит только на телефоне. Уведомления на часы отправляет Android-приложение."}));
   }
   panel.appendChild(watchCard);
   panel.appendChild(cycle0Card());
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Красные флаги"}), plain(RED_FLAGS)]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Как читать план"}), plain([
-    "<b>Цикл — 4 дня по графику 2/2:</b> смена 1 — Зона 2 на велотренажёре и суставы; смена 2 — день восстановления: растяжка и дыхание, без тренировки; выходной 1 — силовая «А» (нечётные циклы) или «Б» (чётные) с кором и заминкой; выходной 2 — раунды и интервалы: скакалка, бой с тенью, груша, интервалы в горку или на велотренажёре. 180 дней = 45 циклов = 9 блоков по 20 дней.",
-    "<b>Каждый 5-й цикл — разгрузка:</b> объём минус 40–50%, без ускорений, прыжков, изометрии и предельных попыток.",
-    "<b>Таймеры:</b> раунды, бег, растяжка и кардио идут по таймеру с сигналами; кнопка «▶» у упражнения на время запускает отсчёт.",
-    "<b>Подход:</b> вес уже подставлен из плана — сделай, впиши повторы, выбери запас и нажми ○. Запустится отдых, а следующий вес пересчитается по правилу плана.",
-    "<b>Пара 1a / 1b</b> — тяга резины к лицу в отдыхе между подходами приседаний: время то же, а плечи и осанка в плюсе.",
-    "<b>Пропустил выходной</b> — на рабочий день не переносим. Пропущены оба выходных — повтори цикл целиком.",
-    "<b>Ночные смены</b> — перед сменой сон 20–30 мин, кофеин только в первой половине смены, домой в тёмных очках и сразу спать. Тренировка после ночной — только после сна и без интервалов. Не выспался перед выходными — поменяй их местами: сначала раунды по жёлтому правилу, силовая на следующий день.",
-    "<b>Светофор:</b> спал меньше 6 часов, пришёл с ночной смены или пульс покоя на 7+ ударов выше обычного — жёлтый день (минус треть подходов, без интервалов, прыжков и тяжёлых ног); два жёлтых подряд — красный.",
-    "<b>Ворота</b> в Дни 60 и 120: не прошёл критерии — повтори последний мезоцикл фазы (дни 41–60 или 101–120), нумерация сдвигается на 20 дней.",
-    "<b>Боль в суставе:</b> 0–2 из 10 — продолжаем; 3–4 — меньше вес или амплитуда; 5 и выше — упражнение прекращаем.",
-    "<b>Стоп и к врачу:</b> боль или давление в груди, перебои, головокружение, внезапная сильная головная боль. Давление перед тренировкой выше 160/100 — только Зона 2 и визит к врачу."
+    "<b>Цикл — 4 дня по графику 2/2:</b> смена 1 — дома таз, кор и дыхание; смена 2 — дома зона 2 на велотренажёре и разгрузка спины; выходной 1 — зал А: жимы, тяги, ягодицы, медленные волокна и зона 2; выходной 2 — зал Б: всё тело, интервалы, мешок и гибкость. 140 дней = 35 циклов = 6 блоков.",
+    "<b>Волны:</b> Л — лёгкая (12–15 повторов в медленном темпе), С — средняя (8–12), Т — тяжёлая (4–6 или кластеры, запас 2–3), Р — разгрузка. В блоке: Л, С, Т, С, Т, Р; блок 6 — С, Т, С, Т, Р.",
+    "<b>Пары 1a и 1b:</b> подход 1a → короткий отдых → подход 1b → отдых → снова 1a. Приложение само ведёт по паре и запускает отдых.",
+    "<b>Вес:</b> приложение оценивает максимум по прошлой записи и пересчитывает вес под волну дня. Первый раз — найди вес за 2–3 пробных подхода. Записывай вес, повторы и запас — от этого зависит точность.",
+    "<b>Таймеры:</b> кардио, интервалы, растяжка и удержания идут по таймеру с сигналами; кнопка «▶» у упражнения на время запускает отсчёт.",
+    "<b>Светофор:</b> в начале дня выбери цвет. Жёлтый — веса автоматически −15% и вместо интервалов зона 2; красный — восстановление вместо зала.",
+    "<b>Пропустил выходной</b> — на рабочий день не переносим. Пропущены оба — повтори цикл."
   ]), rirGuide(false)]));
-  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 4"}), plain([
-    "<b>Восстановление на первом месте:</b> около 5 часов тренировок в неделю вместо 8. Вторая смена — день восстановления, после первой — только Зона 2 на велотренажёре и суставы.",
-    "<b>Силовая — до 70 минут:</b> оба главных движения в каждой, жим стоя вместо взятия на грудь, тяга резины к лицу, болгарские сплит-приседания, прогулка фермера вместо программ на предплечья; основная работа — 6–10 повторов.",
-    "<b>Раунды и интервалы — до 60 минут:</b> чередуются программы раундов Ли и интервалы; спринты — только в горку или на велотренажёре, по ровному не спринтуем.",
-    "<b>Кор вместо скручиваний:</b> планка, боковая планка, «мёртвый жук», подъём коленей в висе, паллоф-пресс.",
-    "<b>Сон и смены:</b> правила для ночных смен, кофеин — не позже чем за 8 часов до сна, светофор с чёткими порогами.",
-    "<b>Питание:</b> белок в 4 приёма, последний — перед сном; в Фазе 3 — поддержание.",
-    "Контрольные тесты в Цикле 0 и в Дни 57–60, 117–120, 177–180 — таблица во вкладке «Прогресс».",
-    "Записи прошлой версии не удалены: они хранятся отдельно и в новый план не попадают."
+  panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 5"}), plain([
+    "<b>Новая программа «Позвоночник прежде всего»</b> на 20 недель: никакой нагрузки на позвоночник сверху вниз — без приседаний и становой со штангой, жимов стоя, тяг в наклоне, прыжков, скакалки и бега.",
+    "<b>Дома после смены</b> — 23–30 минут: положение таза, кор и дыхание; зона 2 и разгрузка спины. <b>Зал</b> — 55–90 минут.",
+    "<b>Волны Л, С, Т и Р</b>, смена упражнений каждые 24 дня, три уровня нагрузки.",
+    "<b>Вес считается по прошлой тренировке</b> и пересчитывается под волну; в жёлтый день — минус 15%.",
+    "<b>Пульсовые зоны</b> — по твоему пульсу покоя из профиля.",
+    "<b>Тесты</b> — Цикл 0 до старта, дни 71 и 139.",
+    "Записи версии 4 не удалены: их можно сохранить файлом в «Резервной копии»."
   ])]));
   var imp = h("input", {type:"file", accept:".json,application/json,text/plain", style:"display:none", id:"imp"});
   imp.addEventListener("change", function(){ var f = imp.files && imp.files[0]; if(!f) return; var rd = new FileReader(); rd.onload = function(){ importData(rd.result); }; rd.readAsText(f); });
@@ -1052,7 +1132,7 @@ function renderProfile(app){
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Резервная копия"}), h("p", {class:"small muted", text:NATIVE ? "Записи хранятся в телефоне. Делай копию раз в неделю: она сохранится в «Загрузки». Обновления приложения записи не стирают, а удаление — стирает." : "В веб-версии записи хранятся в твоём аккаунте Claude. Копия нужна, чтобы перенести их в Android-приложение."}),
     h("div", {class:"row"}, [h("button", {type:"button", class:"btn", text:"Сохранить копию", onclick:exportData}), h("button", {type:"button", class:"btn ghost", text:"Загрузить из файла", onclick:function(){ imp.click(); }}), imp]),
     h("div", {class:"field"}, [ta]), h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Загрузить из текста", onclick:function(){ importData(ta.value); }})]), oldRecordsBlock()]));
-  panel.appendChild(h("p", {class:"tiny muted", text:"Брюс Ли 4.0" + (NATIVE ? " · версия " + safeVersion() : " · веб-версия")}));
+  panel.appendChild(h("p", {class:"tiny muted", text:"Брюс Ли 5.0 · позвоночник прежде всего" + (NATIVE ? " · версия " + safeVersion() : " · веб-версия")}));
   app.appendChild(panel);
 }
 function cycle0Card(){
@@ -1064,31 +1144,31 @@ function cycle0Card(){
   }));
   var tests = DATA.tests.concat(DATA.c0extra).map(function(t){ return testRow(t, c0.tests[t.id], function(v){ c0.tests[t.id] = v; save("cycle0"); }); });
   return h("div", {class:"card", id:"c0card"}, [h("h3", {text:"Цикл 0 — 4 дня до старта"}),
-    h("p", {class:"small", text:"Две смены и два выходных перед Днём 1. Нагрузки нет: допуск врача, стартовые замеры и подготовка. С этими цифрами сравниваешь себя в тестовые дни."}),
-    plain(["<b>Дни 0-1 и 0-2 (смены):</b> утром пульс покоя (7 утр подряд), вес и давление (3 дня по 2 замера); после смены — знакомство с протоколами рабочих дней, медленно.",
-      "<b>День 0-3 (выходной):</b> талия и фото; врач; тесты силы и мобильности после разминки А на половину усилия. Вечером прогулка 30 мин, с этого дня — креатин 3–5 г.",
-      "<b>День 0-4 (выходной):</b> степ-тест утром, «две мили Ли» в Зоне 2, после разминки А — прыжки, скакалка, тест скорости рук. Приготовь 4 контейнера на две смены.",
-      "<b>Допуска пока нет?</b> Оставайся в Цикле 0: рабочие дни — по протоколам смен, в выходные — прогулка 40 мин в Зоне 2 и растяжка."]),
+    h("p", {class:"small", text:"Две смены и два выходных перед Днём 1. Нагрузки нет: допуск врача, стартовые замеры и подбор контрольных весов. С этими цифрами сравниваешь себя в дни 71 и 139."}),
+    plain(["<b>Смены 0-1 и 0-2:</b> каждое утро пульс покоя лёжа и вес (7 утр подряд); давление 3 дня по 2 замера. Вечером — протоколы Дней 1 и 2 в половину объёма, медленно.",
+      "<b>Выходной 0-3:</b> талия и фото сбоку; врач. В зале — разведка без нагрузки: настрой тренажёры и найди контрольные веса — тяга Т-грифа и тренажёр горизонтального жима на 10 повторов с запасом 2–3.",
+      "<b>Выходной 0-4:</b> тест зоны 2 — 10 минут на горизонтальном велотренажёре в нижней половине зоны 2, запиши мощность или скорость; боковая планка; тест Томаса и «руки вверх у стены».",
+      "<b>Допуска пока нет?</b> Оставайся в Цикле 0: рабочие дни — по протоколам Дней 1–2, выходные — прогулка 40 мин в зоне 2 и растяжка."]),
     h("h3", {text:"Подготовь и проверь"}), checks,
     h("h3", {text:"Стартовые замеры"})].concat(tests));
 }
 function safeVersion(){ try{ return NATIVE.version(); }catch(e){ return ""; } }
-/* записи версии 3 остаются в телефоне под старым ключом: их можно сохранить отдельным файлом */
+/* записи версии 4 («Брюс Ли», 180 дней) остаются в телефоне под старым ключом: их можно сохранить отдельным файлом */
 function oldRecordsBlock(){
-  if(!NATIVE || !lsGet(LS_OLD)) return null;
-  return h("div", {style:"display:grid;gap:8px;margin-top:4px"}, [h("p", {class:"small muted", text:"Тренировки версии 3 в новый план не попадают, но остаются в телефоне. Их можно сохранить отдельным файлом в «Загрузки»."}),
-    h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Сохранить записи версии 3", onclick:exportOld})])]);
+  if(!lsGet(LS_OLD)) return null;
+  return h("div", {style:"display:grid;gap:8px;margin-top:4px"}, [h("p", {class:"small muted", text:"Тренировки версии 4 (программа на 180 дней) в новый план не попадают, но остаются в телефоне. Их можно сохранить отдельным файлом."}),
+    h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Сохранить записи версии 4", onclick:exportOld})])]);
 }
 function exportOld(){
   var old = null; try{ old = JSON.parse(lsGet(LS_OLD) || "null"); }catch(e){}
-  if(!old){ toast("Записей версии 3 нет"); return; }
-  var json = JSON.stringify({app:"bl3", v:2, saved:new Date().toISOString(), data:old});
-  var p = ""; try{ p = NATIVE.saveBackup(json, "bruce-lee-3-records-" + isoToday() + ".json"); }catch(e){}
-  toast(p ? "Сохранено: " + p : "Не удалось сохранить файл");
+  if(!old){ toast("Записей версии 4 нет"); return; }
+  var json = JSON.stringify({app:"bl4", v:1, saved:new Date().toISOString(), data:old});
+  if(NATIVE){ var p = ""; try{ p = NATIVE.saveBackup(json, "bruce-lee-4-records-" + isoToday() + ".json"); }catch(e){} toast(p ? "Сохранено: " + p : "Не удалось сохранить файл"); return; }
+  var ta = document.getElementById("bk-text"); if(ta){ ta.value = json; ta.select(); } toast("Текст записей версии 4 — в поле ниже");
 }
 function exportData(){
-  var json = JSON.stringify({app:"bl4", v:1, saved:new Date().toISOString(), data:S});
-  var name = "bruce-lee-4-" + isoToday() + ".json";
+  var json = JSON.stringify({app:"bl5", v:1, saved:new Date().toISOString(), data:S});
+  var name = "bruce-lee-5-" + isoToday() + ".json";
   if(NATIVE){ var p = ""; try{ p = NATIVE.saveBackup(json, name); }catch(e){} toast(p ? "Сохранено: " + p : "Не удалось сохранить файл"); return; }
   var ta = document.getElementById("bk-text"); if(ta){ ta.value = json; ta.select(); }
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).then(function(){ toast("Копия скопирована в буфер обмена"); }, function(){ toast("Текст копии в поле ниже — скопируй его"); });
@@ -1098,12 +1178,16 @@ function importData(txt){
   try{
     var o = JSON.parse(txt); var d = o && o.data ? o.data : o;
     if(!d || !d.profile) throw new Error("bad");
-    S.profile = Object.assign(S.profile, d.profile || {});
-    var days = d.days || {}; Object.keys(days).forEach(function(k){ if(/^n\d{3}$/.test(k)) S.days[k] = days[k]; });
-    if(d.c0) S.c0 = {tests:Object.assign(S.c0.tests, d.c0.tests || {}), checks:Object.assign(S.c0.checks, d.c0.checks || {})};
+    var old = o.app && o.app !== "bl5";
+    var keep = old ? {start:S.profile.start, startOk:S.profile.startOk} : {};
+    S.profile = Object.assign(S.profile, d.profile || {}, keep);
+    if(!old){
+      var days = d.days || {}; Object.keys(days).forEach(function(k){ if(/^s\d{3}$/.test(k)) S.days[k] = days[k]; });
+      if(d.c0) S.c0 = {tests:Object.assign(S.c0.tests, d.c0.tests || {}), checks:Object.assign(S.c0.checks, d.c0.checks || {})};
+    }
     if(d.body && d.body.length) S.body = d.body;
-    persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); pushDoc("cycle0"); }
-    toast(o.app === "bl3" ? "Из копии версии 3 перенесены профиль и вес" : "Копия загружена"); render();
+    ZT = null; persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); pushDoc("cycle0"); }
+    toast(old ? "Из копии старой версии перенесены профиль и вес" : "Копия загружена"); render();
   }catch(e){ toast("Не похоже на резервную копию"); }
 }
 
