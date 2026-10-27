@@ -1,0 +1,184 @@
+# Гайды Кирилла Сарычева «Путь к 100 / 150 / 200 кг» — программа тренировок, переписанная вручную со страниц PDF.
+# Формат: "== G<гайд> W<неделя>", затем строки d1/d2/d3 (Пн/Ср/Пт гайда), упражнения через ";;".
+# Упражнение: ключ спецификация [| заметка]. Спецификация: "75x5x5" или "60x6x2, 70x5x2" — % от максимума × повторы × подходы;
+# "Wx10x4" — вес по ощущениям × повторы × подходы; "20x4" — без веса. "+ss" — суперсет с предыдущим. "alt:" — замена, которую разрешает сам гайд.
+# Последняя неделя гайда — проходка (d1); d2 и d3 этой недели — разгрузка, их добавляет appdata.py.
+
+== G100 W1
+d1: bench 75x5x5 ;; db_fly Wx10x4 ;; cg_bench 65x6x4 ;; bb_curl Wx12x5 ;; core 30x3
+d2: incl_bench 55x6x5 ;; dips Wx15x4 ;; lat_pull Wx15x4 ;; leg_ext Wx30x4 ;; hyper Wx20x4 ;; farewell 50 ;; core 30x3
+d3: bench 75x6x5 ;; seated_press 40x15x4 ;; incl_db_fly Wx15x4 ;; rev_curl Wx10x5 ;; core 20x4
+
+== G100 W2
+d1: bench 70x6x4 ;; db_fly Wx8x5 ;; db_seated Wx8x4 ;; bb_curl Wx10x5 ;; core Wx30x3
+d2: standing_press 55x6x5 ;; tri_push Wx10x5 ;; cable_row Wx12x5 ;; kb_squat Wx10x5 ;; hyper 20x4 ;; farewell 50 ;; core Wx30x3
+d3: bench 70x4x2, 80x5x3 ;; incl_db_fly Wx8x5 ;; wg_bench 70x5x4 ;; rev_curl Wx8x5 ;; wrist_curl Wx15x5 ;; core Wx30x3
+
+== G100 W3
+d1: bench 60x6x2, 70x5x2, 80x5x4 ;; db_fly Wx8x5 ;; mg_bench 65x6x5 ;; bb_curl Wx8x6 ;; wrist_curl Wx15x4
+d2: incl_bench 60x6x5 ;; db_seated Wx10x4 ;; lat_pull Wx10x4 ;; +ss cable_row Wx10x4 ;; leg_ext Wx20x4 ;; bw_squat 20x4 ;; hyper Wx10x5 ;; core Wx30x3
+d3: bench 75x8x2 ;; dips Wx8x5 ;; rev_curl Wx8x6 ;; wrist_curl Wx10x5 ;; core Wx30x3
+
+== G100 W4
+d1: bench 60x5x2, 70x4x2, 80x3x2, 85x2x5 ;; db_fly Wx8x5 ;; db_bench_pct 77x5x5 ;; db_curl Wx10x5 ;; core Wx30x3
+d2: seated_press 50x6x5 ;; lat_raise Wx10x5 ;; lat_pull Wx10x5 | хват как в жиме лёжа ;; leg_ext Wx15x5 ;; hyper Wx15x4 ;; core Wx30x3
+d3: bench 60x9x1, 65x8x1, 70x6x1, 75x5x1, 80x4x1, 85x4x1, 90x2x1, 85x3x1, 80x3x1, 70x5x1, 60x8x1 ;; incl_db_fly Wx8x6 ;; rev_curl Wx10x5 ;; wrist_curl Wx15x5 ;; core Wx30x3
+
+== G100 W5
+d1: bench 70x4x2, 80x3x2, 85x3x2, 90x2x5 ;; board 90x3x1, 95x2x1, 100x2x1 ;; cg_pushups 20x4 ;; bb_curl Wx10x5 ;; wrist_curl Wx20x4 ;; core Wx30x3
+d2: leg_ext Wx20x4 ;; box_squat 15x4 ;; incl_db_pct 60x6x5 ;; standing_press Wx8x4 ;; lat_raise Wx8x4 ;; lat_pull Wx20x5 ;; hyper Wx10x5
+d3: bench 80x4x2, 85x5x3 ;; db_fly Wx6x5 ;; cg_bench 65x5x5 ;; rev_curl Wx8x5 ;; wrist_curl Wx10x5 ;; core Wx30x3
+
+== G100 W6
+d1: bench 75x4x2, 85x2x8 ;; db_fly Wx6x5 ;; db_bench Wx5x5 ;; bb_curl Wx8x4 | +2 негативных подхода с меньшим весом ;; wrist_curl Wx20x4 ;; core Wx30x3
+d2: leg_ext Wx10x5 ;; box_squat 30x5 ;; db_seated Wx10x5 ;; lat_raise Wx10x4 ;; lat_pull Wx10x5 | хват как в жиме лёжа ;; hyper Wx15x4 ;; core Wx30x3
+d3: bench 70x6x2, 80x3x4, 90x2x3, 85x3x3 ;; incl_db_fly Wx8x6 ;; rev_curl Wx10x5 ;; core Wx30x3
+
+== G100 W7
+d1: bench 70x4x2, 80x3x2, 90x2x2, 95x1x2 ;; board 100x1x2 ;; incl_db Wx8x4 ;; tri_push Wx8x5 ;; bb_curl Wx10x5 ;; wrist_curl Wx30x4 ;; core Wx30x3
+d2: kb_squat Wx10x5 ;; leg_ext Wx5x3 ;; lat_raise Wx10x5 ;; lat_pull Wx10x5 ;; +ss cable_row Wx10x5 ;; hyper Wx30x4
+d3: bench 75x2x4, 85x4x4 ;; db_fly Wx8x5 ;; cg_bench 65x6x4 ;; rev_curl Wx8x5 ;; wrist_curl Wx30x3
+
+== G100 W8
+d1: bench 80x5x4 ;; +ss rev_curl Wx5x4 ;; incl_db_fly Wx8x5 ;; tri_push Wx10x4 ;; +ss bb_curl Wx10x4 ;; wrist_curl Wx30x4 ;; core Wx30x3
+d2: kb_squat Wx15x4 ;; leg_ext Wx15x3 ;; lat_raise Wx10x5 ;; lat_pull Wx8x5 ;; +ss cable_row Wx8x5 ;; hyper Wx10x4 ;; core Wx10x5
+d3: bench 70x4x4 ;; core Wx8x2 ;; meditation 1
+
+== G100 W9
+d1: test 60x5x1, 70x3x1, 80x2x1, 90x1x1, 100x1x1
+
+== G150 W1
+d1: squat 50x10x3 | alt: разгибание ног 50%x10x3 ;; bench 75x3x5 ;; db_fly Wx10x3 ;; bb_curl Wx10x4 ;; core Wx30x3 ;; hyper 20x2
+d2: hyper_w Wx10x4 ;; standing_press 35x6x2 ;; cg_pullups 15x4 ;; +ss cable_row Wx30x4 ;; wrist_curl Wx15x4 ;; core Wx30x3
+d3: bench 60x5x2 ;; incl_bench 50x6x4 ;; incl_db_fly Wx8x4 ;; lat_raise Wx8x4 ;; rev_curl Wx8x5
+
+== G150 W2
+d1: bench 70x4x2, 77x3x5 ;; squat 60x8x4 | alt: разгибание ног Wx20x4 ;; cg_bench 50x5x5 ;; bb_curl Wx12x4 ;; core Wx30x3
+d2: dl 50x8x4 ;; seated_press 35x6x4 ;; lat_pull Wx10x5 ;; +ss cable_row Wx10x5 ;; wrist_curl Wx15x4 ;; hyper 20x3
+d3: bench 70x3x2, 80x3x5 ;; incl_db Wx8x4 ;; tri_push Wx8x4 ;; hammer Wx10x5 ;; core Wx30x3
+
+== G150 W3
+d1: squat 60x12x3 | alt: разгибание ног Wx20x5 ;; bench 80x3x6 ;; db_fly Wx10x4 ;; bb_curl Wx6x6 ;; core Wx30x3
+d2: dl 55x8x4 ;; seated_press 40x5x5 ;; wide_pullups 8x4 ;; lat_pull Wx10x3 ;; neg_pullups 4x3 ;; core Wx30x3
+d3: bench 70x5x5 ;; db_fly Wx10x3 ;; mg_bench 55x5x4 ;; rev_curl Wx8x5 ;; core Wx30x3
+
+== G150 W4
+d1: squat 50x15x3 | alt: разгибание ног Wx15x3 ;; bench 70x4x2, 75x4x2, 77x3x2, 85x2x2, 82x2x3 ;; incl_db_fly Wx8x3 ;; french Wx5x5 | очень аккуратно ;; bb_curl Wx8x5
+d2: dl 60x5x5 ;; incl_bench 60x4x5 ;; lat_pull Wx10x4 ;; cable_row Wx10x4 ;; bench 70x4x4 ;; core Wx30x3
+d3: bench 70x3x2, 75x3x5 ;; incl_db_fly Wx6x4 ;; bench_neg 70x4x2, 85x3x4 ;; lat_raise Wx10x4 ;; rev_curl Wx10x5 ;; core Wx30x3
+
+== G150 W5
+d1: squat 60x8x4 | alt: разгибание ног Wx20x5 ;; bench 70x3x2, 80x3x6 ;; db_fly Wx8x4 ;; bench 60x5x1, 65x5x1, 70x5x1, 75x5x1, 80x5x1 | второй блок жима ;; bb_curl Wx8x5
+d2: dl 65x6x5 | alt: гиперэкстензия с весом 20 кг 8x4 ;; incl_bench 65x4x5 ;; cg_pullups 8x4 ;; cable_row Wx10x4 ;; db_row Wx10x4 ;; core Wx30x3
+d3: bench 60x6x1, 65x5x1, 70x4x1, 80x3x1, 85x2x1, 87x1x1, 82.5x3x1, 75x4x1, 60x6x1, 55x8x1 | «Вас погубит жадность. Не прибавляйте вес» ;; db_fly Wx10x3 ;; db_seated Wx6x4 ;; lat_raise Wx10x4 ;; hammer Wx8x5 ;; core Wx30x3
+
+== G150 W6
+d1: squat 70x6x5 | alt: разгибание ног Wx10x6 ;; bench 70x4x2, 80x3x2, 85x2x3 ;; db_fly Wx10x5 ;; mg_bench 55x5x1, 60x5x1, 65x5x1, 70x5x1, 75x5x1 ;; bb_curl Wx6x6 ;; core Wx30x3
+d2: rdl 50x12x3 ;; standing_press 40x6x5 ;; lat_pull Wx8x5 ;; +ss cable_row Wx8x5 ;; tbar Wx8x4 ;; hyper 20x3
+d3: bench 80x4x4 ;; incl_bench 50x8x3 ;; lat_raise Wx10x4 ;; tri_push Wx8x5 | легко ;; rev_curl Wx8x5
+
+== G150 W7
+d1: bench 70x3x2, 80x3x2, 85x2x2, 80x3x2 ;; squat 60x10x3 | alt: разгибание ног Wx15x5 ;; mg_bench 75x4x4 ;; bb_curl Wx8x3 ;; +ss rev_curl Wx8x3 ;; core Wx30x3
+d2: dl 55x8x4 ;; incl_bench 65x5x4 ;; tri_push Wx10x4 ;; cable_row Wx20x4 ;; tbar Wx8x4 ;; hyper 20x3
+d3: bench 70x3x2, 80x3x1, 85x2x3, 87x1x2 ;; db_fly Wx8x4 ;; bench 70x5x5 | второй блок жима ;; lat_raise Wx10x4 ;; hammer Wx8x5 ;; core Wx30x3
+
+== G150 W8
+d1: squat 70x5x5 | alt: разгибание ног Wx20x5 ;; bench 70x3x2, 80x3x2, 85x2x5 ;; db_fly Wx10x4 ;; french Wx8x3 | очень аккуратно ;; bb_curl Wx10x5 ;; core Wx30x3
+d2: hyper_w 20x20x3 ;; incl_bench 70x5x3 ;; db_seated Wx8x3 ;; cg_pullups 8x4 ;; lat_pull Wx10x4 ;; core Wx30x3
+d3: bench 70x3x2, 80x4x4 ;; db_fly Wx6x5 ;; tri_push Wx8x5 ;; rev_curl Wx8x4 ;; core Wx30x3
+
+== G150 W9
+d1: squat 60x8x4 | alt: разгибание ног Wx15x5 ;; bench 50x8x1, 60x6x1, 70x5x2, 80x4x2, 85x3x2, 87x2x2 ;; db_fly Wx10x3 ;; tri_push Wx8x5 ;; bb_curl Wx10x4
+d2: dl 60x8x3 ;; tbar Wx8x3 ;; lat_pull Wx10x3 ;; +ss cable_row Wx10x3 ;; wrist_curl Wx15x4 ;; hyper 20x3
+d3: bench 70x3x2, 80x3x2, 85x2x3 ;; incl_db_fly Wx8x3 ;; board15 70x3x1, 80x3x1, 90x3x1, 100x1x2 ;; lat_raise Wx10x4 ;; hammer Wx12x4
+
+== G150 W10
+d1: squat 70x5x4 | alt: разгибание ног Wx20x5 ;; bench 60x6x1, 70x5x1, 80x4x4, 80x4x2, 85x3x2, 87x2x2 ;; incl_db_fly Wx8x5 ;; bench_speed 60x2x5 | вниз медленно, вверх взрывом, отдых ≤1 мин ;; bb_curl Wx6x6
+d2: dl 70x4x4 ;; cg_pullups 10x3 ;; cable_row Wx10x5 ;; db_row Wx10x3 ;; hyper 20x2
+d3: bench 80x2x4 ;; db_bench Wx10x4 | очень легко ;; lat_raise Wx8x4 ;; rev_curl Wx10x4 ;; core Wx30x3
+
+== G150 W11
+d1: squat 60x8x3 | alt: разгибание ног Wx15x4 ;; bench 60x6x1, 70x5x1, 80x4x1, 85x3x1, 90x3x1, 92.5x3x1, 95x3x1 ;; db_fly Wx8x4 ;; tri_push Wx10x4 ;; bb_curl Wx15x3
+d2: dl 60x6x5 ;; lat_pull Wx10x4 ;; +ss cable_row Wx10x4 ;; tbar Wx8x4 ;; hyper_w 10x10x4 ;; core Wx30x3
+d3: bench 75x5x5, 80x2x4 ;; seated_press 35x6x4 ;; lat_raise Wx8x4 ;; rev_curl Wx12x4 ;; wrist_curl Wx15x4 ;; core Wx30x3
+
+== G150 W12
+d1: squat 70x5x4 | alt: разгибание ног Wx30x3 ;; bench 70x4x2, 80x3x1, 82.5x2x3 ;; tri_push Wx8x4 ;; db_fly Wx10x4 ;; bb_curl Wx15x4
+d2: hyper_w 20x10x3 ;; lat_pull Wx15x3 ;; +ss cable_row Wx15x3 ;; hammer Wx8x5 ;; wrist_curl Wx15x4 ;; core Wx30x3
+d3: bench 70x4x4 ;; meditation 1
+
+== G150 W13
+d1: test 50x6x1, 60x5x1, 70x3x1, 80x2x1, 90x1x1, 100x1x1, 102x1x1
+
+== G200 W1
+d1: squat 60x5x4 ;; bench 75x5x5 ;; db_fly Wx8x5 ;; standing_press 35x8x4 ;; tri_push Wx10x4 ;; bb_curl Wx15x4 ;; core 20x4
+d2: dl 50x8x4 ;; tbar Wx8x5 ;; cable_row Wx10x4 ;; hyper 30x3 ;; core 20x4
+d3: bench 72.5x3x2, 80x2x5 ;; incl_db_fly Wx10x4 ;; lat_raise Wx10x5 ;; french_pct 20x8x4 ;; hammer Wx8x5 ;; core 20x4
+
+== G200 W2
+d1: squat 50x10x3 ;; bench 70x3x2, 80x3x5 ;; db_seated Wx8x4 ;; db_fly Wx8x5 ;; bb_curl Wx10x4
+d2: dl 60x6x4 ;; leg_curl Wx10x4 ;; lat_pull Wx12x4 ;; cable_row Wx10x4 ;; hyper Wx20x3 ;; core 20x4
+d3: bench_speed 60x4x8 ;; incl_db_pct 50x5x5 | в той же манере, что и скоростной жим ;; lat_raise Wx8x5 ;; hammer Wx12x4 ;; core 20x4
+
+== G200 W3
+d1: squat 50x8x4 ;; bench 70x3x2, 80x3x2, 82.5x2x4 ;; db_fly Wx8x4 ;; french_pct 20x10x3 ;; bb_curl Wx15x5 ;; core 20x4
+d2: dl 50x10x4 ;; cg_pullups 8x4 ;; cable_row Wx10x5 ;; leg_curl Wx20x3 ;; hyper_w Wx10x3 | в гайде — с утяжелением 20 кг
+d3: bench 77.5x5x5 ;; incl_db_fly Wx10x4 ;; seated_press 35x6x4 ;; lat_raise Wx8x5 ;; rev_curl Wx10x4 ;; core 20x4
+
+== G200 W4
+d1: squat 65x5x5 ;; bench 70x3x2, 75x3x2, 80x3x5 ;; incl_db Wx8x4 ;; bb_curl Wx10x5 ;; core 20x4
+d2: rdl 40x12x3 ;; lat_pull Wx10x5 ;; +ss cable_row Wx10x5 ;; leg_curl Wx10x3 ;; hyper 30x3 ;; core 20x4
+d3: bench 75x5x2, 77.5x5x2, 82.5x5x2 ;; db_seated Wx6x5 ;; lat_raise Wx10x4 ;; rev_curl Wx8x5 ;; tri_push Wx12x3
+
+== G200 W5
+d1: squat 50x10x3 ;; bench 80x3x1, 85x3x2, 87.5x2x1, 90x2x1 ;; db_bench Wx8x5 ;; tri_push Wx10x4 ;; +ss bb_curl Wx10x4 ;; core 20x4
+d2: dl 60x8x4 ;; tbar Wx8x4 ;; cable_row Wx10x4 ;; leg_curl Wx10x5 ;; core 20x4
+d3: bench 75x4x4 ;; db_fly Wx10x4 ;; lat_raise Wx8x5 ;; hammer Wx12x5 ;; core 20x4
+
+== G200 W6
+d1: squat 70x5x4 ;; bench 60x5x1, 65x3x2, 75x3x2, 85x2x1, 90x1x1 | 90% — с паузой ;; db_fly Wx8x4 ;; seated_press 40x8x4 ;; bb_curl Wx10x4 ;; core 20x4
+d2: dl 50x10x3 ;; cg_pullups 8x4 ;; wide_pullups 8x4 ;; bb_curl_empty 20x4 ;; hyper Wx15x3 ;; core 20x4
+d3: bench 60x4x1, 72.5x3x2, 80x3x2, 85x2x3 ;; incl_bench 40x8x4 ;; lat_raise Wx15x3 ;; tri_push Wx10x4 ;; rev_curl Wx8x5 ;; core 20x4
+
+== G200 W7
+d1: squat 50x12x3 ;; bench 70x3x2, 77.5x3x3, 82.5x3x3 ;; incl_db_fly Wx10x4 ;; tri_push Wx8x4 ;; bb_curl Wx8x5 ;; core 20x4
+d2: dl 60x8x5 ;; lat_pull Wx12x4 ;; cable_row Wx8x5 ;; leg_curl Wx20x4 ;; hyper Wx10x3 ;; core 20x4
+d3: bench 60x4x1, 72.5x3x2, 82.5x3x3, 85x2x3 ;; db_fly Wx10x4 ;; db_seated Wx8x4 ;; lat_raise Wx12x4 ;; hammer Wx10x4
+
+== G200 W8
+d1: squat 70x6x4 ;; bench 72.5x4x3, 77.5x3x3, 82.5x3x5 ;; tri_push Wx15x3 | легко ;; bb_curl Wx8x5 ;; core 20x4
+d2: hyper Wx10x3 ;; leg_curl Wx12x4 ;; cg_pullups 10x3 ;; cable_row Wx12x4 ;; core 20x4
+d3: bench 75x3x3, 80x4x5 ;; incl_db_fly Wx8x5 ;; db_seated Wx8x4 ;; lat_raise Wx8x4 | сидя ;; rev_curl Wx8x5 ;; core 20x4
+
+== G200 W9
+d1: squat 75x4x4 ;; bench 70x3x2, 75x3x3, 80x2x5 ;; incl_db Wx10x4 | легко ;; bb_curl Wx10x4 ;; core 20x4
+d2: dl 60x8x4 ;; leg_curl Wx10x4 ;; cg_pullups 10x4 ;; +ss wide_pullups 10x4 ;; hyper Wx20x3 ;; core 20x4
+d3: bench 60x4x1, 70x3x1, 75x2x1, 80x1x2, 90x1x1 | 90% — с паузой ;; sling 100x1x1, 110x1x2 ;; tri_push Wx8x5 ;; lat_raise Wx8x5 ;; rev_curl Wx10x4 ;; hammer Wx15x3 | легко ;; core 20x4
+
+== G200 W10
+d1: squat 60x8x4 ;; bench 70x3x2, 75x3x5 | в гайде опечатка «75,5%» ;; french Wx8x4 ;; bb_curl Wx10x4 ;; +ss rev_curl Wx10x4 ;; core 20x4
+d2: dl 50x8x4 ;; bb_row Wx10x4 ;; cable_row Wx8x5 ;; hyper Wx10x3 ;; core 20x4
+d3: bench 70x3x2, 75x3x3, 85x1x3, 80x2x2 ;; db_seated Wx10x4 ;; lat_raise Wx15x3 | сидя ;; hammer Wx10x5 ;; core 20x4
+
+== G200 W11
+d1: squat 60x6x4 ;; bench 70x3x2, 75x3x1, 85x1x1, 92.5x1x1 | 92,5% — с паузой ;; sling 100x2x1, 110x1x2 ;; tri_push Wx8x4 ;; incl_db_fly Wx8x5 ;; bb_curl Wx10x4
+d2: rdl 50x10x3 ;; lat_pull Wx15x4 ;; cable_row Wx10x3 ;; leg_curl Wx10x5 ;; hyper 30x3
+d3: bench 70x3x2, 75x3x1, 80x2x1, 85x1x2 ;; db_fly Wx8x4 | легко ;; lat_raise Wx12x3 | легко ;; hammer Wx10x4 | легко ;; core 20x4
+
+== G200 W12
+d1: bench 70x3x2, 75x3x1, 80x2x1, 85x2x1, 90x2x1, 97x1x1 ;; incl_db Wx8x4 ;; tri_push Wx8x4 ;; bb_curl Wx8x5 ;; core 20x4
+d2: hyper Wx12x4 ;; leg_curl Wx10x5 ;; tbar Wx10x4 ;; cable_row Wx15x3 ;; core 20x4
+d3: bench 70x3x2, 80x2x3 ;; db_fly Wx8x5 ;; seated_press Wx8x4 | легко ;; lat_raise Wx12x4 ;; hammer Wx15x4
+
+== G200 W13
+d1: bench 70x4x2, 75x2x4 ;; tri_push Wx8x4 ;; db_fly Wx15x3 ;; bb_curl Wx10x4 ;; core 20x4
+d2: dl 60x10x3 ;; wide_pullups 10x4 ;; lat_pull Wx15x3 ;; leg_curl Wx15x4 ;; core 20x4
+d3: bench 70x4x1, 77x3x3 ;; incl_db Wx8x4 ;; lat_raise Wx10x4 ;; french_pct 20x10x3 ;; hammer Wx8x4
+
+== G200 W14
+d1: bench 77.5x4x4 ;; tri_push Wx10x3 | легко ;; bb_curl Wx8x4 ;; leg_ext Wx15x4 ;; core 20x4
+d2: hyper 30x3 ;; leg_curl Wx12x5 ;; cg_pullups 10x4 ;; cable_row Wx8x4 ;; core 20x4
+d3: bench 65x3x2, 75x3x3 ;; lat_raise Wx10x4
+
+== G200 W15
+d1: test 50x6x1, 60x5x1, 70x3x1, 80x2x1, 90x1x1, 100x1x1, 102.5x1x1

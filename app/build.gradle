@@ -12,9 +12,9 @@ android {
         applicationId 'ru.brucelee3.app'
         minSdk 24
         targetSdk 34
-        // 5.0: коды версий начинаются с 1000, чтобы обновление ставилось поверх 4.0 и поверх сборки 5.0.0
-        versionCode 1000 + runNumber
-        versionName "5.0.${runNumber}"
+        // 6.0: коды версий начинаются с 2000, чтобы обновление ставилось поверх всех сборок 5.0 (1000 + номер сборки)
+        versionCode 2000 + runNumber
+        versionName "6.0.${runNumber}"
     }
 
     signingConfigs {
