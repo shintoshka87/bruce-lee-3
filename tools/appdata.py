@@ -153,6 +153,7 @@ MAP = {
     'cg_pushups': ('cg_pushups', 'bw', {}), 'bw_squat': ('box_squat', 'bw', {}), 'box_squat': ('box_squat', 'bw', {}),
     'hyper': ('bridge', 'bw', {}), 'hyper_w': ('bridge_sl', 'bw', {'per': 'на каждую ногу'}), 'bb_curl_empty': ('ez_empty', 'bw', {}),
     'core': ('core', 'core', {}), 'meditation': ('meditation', 'note', {}),
+    'row_add': ('tbar_cs', 'acc', {}),  # добавлено к гайду: вторая тяга за цикл в силовой Б
 }
 # стартовые оценки разового максимума при жиме 105 кг (кг; у гантелей — одна гантель), тип веса, запас по умолчанию
 ENG = {
@@ -234,13 +235,16 @@ for _ks, _c in [('bench test bench_speed bench_neg board board15 sling', 'BM'),
                 ('cg_bench mg_bench wg_bench incl_bench seated_press standing_press db_bench_pct incl_db_pct db_bench incl_db db_seated dips cg_pushups', 'P2'),
                 ('french french_pct tri_push', 'TRI'), ('db_fly incl_db_fly', 'FLY'), ('lat_raise', 'DELT'),
                 ('bb_curl rev_curl db_curl hammer wrist_curl bb_curl_empty', 'ARM'),
-                ('lat_pull cable_row tbar bb_row db_row cg_pullups wide_pullups neg_pullups farewell', 'PULL'),
+                ('lat_pull cable_row tbar bb_row db_row cg_pullups wide_pullups neg_pullups farewell row_add', 'PULL'),
                 ('squat kb_squat bw_squat box_squat leg_ext leg_curl dl rdl hyper hyper_w', 'LOW'),
                 ('core', 'CORE'), ('meditation', 'NOTE')]:
     for _k in _ks.split():
         CAT[_k] = _c
 COMPOUND = {'BM', 'P2', 'LOW', 'PULL'}
 HOME = {'hyper', 'hyper_w'}
+HROW = {'cable_row', 'tbar', 'bb_row', 'db_row', 'row_add'}
+# В гайдах тянешь раз в цикл, а жмёшь в 2–3 раза больше. Для плеч и жима без моста в силовой Б всегда есть тяга с упором грудью.
+ROW_ADD = {'k': 'row_add', 'W': [12, 3], 'n': 'Добавлено к гайду: вторая тяга за цикл — лопатки и плечи держат жим'}
 LONG = 105  # минут: дольше — третий жим из Дня 2 и вторая разводка «по желанию»
 
 
@@ -441,6 +445,8 @@ def merge_week(wk, test):
         if not best:
             break
         A, B = best[1], best[2]
+    if not any(e['k'] in HROW for u in _flat_s(B) for e in u):
+        B = [B[0] + [[dict(ROW_ADD)]], B[1], B[2]]
     out = []
     for head, tail, end in (A, B):
         us = _arms_last(_pair_all(head + tail + end))
@@ -579,9 +585,17 @@ def spine_steps():
     ]
 
 
+SHOULDERS = [
+    {'ex': 'band_pullapart', 't': '<b>Разведение жгута перед грудью</b> — 2 × 15: лопатки сводятся и опускаются, руки прямые'},
+    {'ex': 'band_facepull', 't': '<b>Тяга жгута к лицу</b> — 2 × 15: локти выше кистей, в конце кисти разворачиваются назад'},
+    {'ex': 'band_er', 't': '<b>Наружная ротация со жгутом</b> — 2 × 12 на каждую руку: локоть прижат к боку, движение только в плече'},
+]
+
+
 def recovery_steps():
+    """Дома в выходные без зала (после кардио и в день восстановления): корпус, ягодицы, задняя дельта и вращательная манжета, растяжка."""
     s = spine_steps()
-    return s[:3] + [{'ex': 'bridge', 't': '<b>Ягодичный мост с резинкой над коленями</b> — 2 × 15, наверху пауза 2 с. Стало легко — на одной ноге, 2 × 10 на каждую'}] + s[3:]
+    return s[:3] + [{'ex': 'bridge', 't': '<b>Ягодичный мост с резинкой над коленями</b> — 2 × 15, наверху пауза 2 с. Стало легко — на одной ноге, 2 × 10 на каждую'}] + SHOULDERS + s[3:]
 
 
 READY_GYM = [
@@ -674,7 +688,7 @@ def build():
     assert len(days) == NCYC * 8
     used = {it['ex'] for g in prog.values() for wk in g for dd in wk.values() for it in dd['items']}
     used |= {it['wide']['ex'] for g in prog.values() for wk in g for dd in wk.values() for it in dd['items'] if 'wide' in it}
-    used |= {'curlup', 'splank', 'birddog', 'breath9090', 'hipflex', 'couch', 'lying9090', 'leg_ext', 'bridge'}
+    used |= {'curlup', 'splank', 'birddog', 'breath9090', 'hipflex', 'couch', 'lying9090', 'leg_ext', 'bridge', 'band_pullapart', 'band_facepull', 'band_er'}
     used.discard('core')
     ex = {k: v for k, v in EX.items() if k in used}
     missing = used - set(EX)
@@ -687,7 +701,7 @@ def build():
     food = {'gym': [FOOD_GYM, FOOD_RULE, SLEEP_OFF], 'rest': [FOOD_REST, FOOD_RULE, SLEEP_OFF], 'shift': [FOOD_SHIFT, FOOD_RULE, SLEEP_SHIFT]}
     return {'guides': GUIDES, 'slots': SLOTS, 'prog': prog, 'days': days, 'ex': ex, 'groups': X.GROUPS, 'eng': ENG, 'cardios': pool, 'food': food,
             'evening': evening_steps(), 'spine': spine_steps(), 'recovery': recovery_steps(), 'mcgill': MCGILL, 'ready': READY_GYM, 'zones': zones,
-            'heart': HEART, 'restWhy': REST_WHY, 'layout': 2}
+            'heart': HEART, 'restWhy': REST_WHY, 'layout': 3}
 
 
 def main(out):

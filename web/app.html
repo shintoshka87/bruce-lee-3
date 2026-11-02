@@ -228,6 +228,7 @@ function gDays(gi){ var a = 0; for(var i = 0; i < gi; i++) a += G[i].weeks; retu
 
 /* ================= хранение ================= */
 var LS = "bl6-app-v1", LS5 = "bl5-app-v1", LS4 = "bl4-app-v1";
+var LAYOUT = 3; /* 1 — 6.0 (три дня гайда), 2 — 6.1.19 (две силовые), 3 — 6.1.20 (в силовой Б добавлена тяга) */
 var S = {v:6, profile:{start:"", startOk:false, max100:"105", max150:"", max200:"", mode:"adapt", feet:"floor", rhr:"", age:"39", hrmax:"", bw:"", stepDb:2, stepMc:5, htRef:"120", sound:true, watch:"rest", squat:"split"}, days:{}, body:[]};
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
@@ -236,7 +237,7 @@ var MIGRATED = false;
   try{
     var raw = JSON.parse(lsGet(LS) || "null");
     if(raw){ S.profile = Object.assign(S.profile, raw.profile || {}); S.days = raw.days || {}; S.body = raw.body || []; return; }
-    S.profile.layout = 2;
+    S.profile.layout = LAYOUT;
     var old = JSON.parse(lsGet(LS5) || "null") || JSON.parse(lsGet(LS4) || "null");
     if(old){
       var op = old.profile || {};
@@ -263,7 +264,25 @@ function migrateDays(days){
   });
   return Object.keys(moved);
 }
-function migrateLayout(){ if(S.profile.layout === 2) return null; var m = migrateDays(S.days); S.profile.layout = 2; return m; }
+/* 6.1.19 → 6.1.20: в силовой Б появилась тяга, номера упражнений сдвинулись — записи переезжают по названию упражнения */
+function migrateRekey(days){
+  var moved = [];
+  for(var c = 1; c <= NCYC; c++){
+    var d = (c - 1) * 8 + 5, day = DAYS[d - 1], r = days[key(d)]; if(!r || !r.sets) continue;
+    var items = DATA.prog[G[day.g].id][day.w - 1][day.gd].items, keys = Object.keys(r.sets);
+    if(!keys.length || keys.every(function(k){ var p = k.split(":"), it = items[+p[0]]; return it && it.ex === p[1]; })) continue;
+    var byEx = {}, ns = {};
+    keys.sort(function(a, b){ return parseInt(a, 10) - parseInt(b, 10); }).forEach(function(k){ var ex = k.split(":")[1]; (byEx[ex] = byEx[ex] || []).push(k); });
+    Object.keys(byEx).forEach(function(ex){ var at = []; items.forEach(function(it, i){ if(it.ex === ex) at.push(i); }); byEx[ex].forEach(function(k, j){ if(j < at.length) ns[at[j] + ":" + ex] = r.sets[k]; }); });
+    r.sets = ns; moved.push(key(d));
+  }
+  return moved;
+}
+function migrateLayout(){
+  var L = S.profile.layout || 1; if(L >= LAYOUT) return null;
+  var m = L < 2 ? migrateDays(S.days) : migrateRekey(S.days);
+  S.profile.layout = LAYOUT; return m;
+}
 function rec(d){ var k = key(d); if(!S.days[k]) S.days[k] = {done:false, note:"", sets:{}, steps:{}, cond:{}, extra:{}, color:""}; var r = S.days[k]; r.sets = r.sets || {}; r.steps = r.steps || {}; r.cond = r.cond || {}; r.extra = r.extra || {}; return r; }
 function persist(){ lsSet(LS, JSON.stringify(S)); }
 var MOVED = migrateLayout(); if(MOVED) persist();
@@ -852,11 +871,11 @@ function renderDay(day){
     if(cd !== main) card.appendChild(h("div", {class:"sec"}, [h("p", {class:"banner", style:"--c:" + (r.color === "r" ? "var(--bad)" : "var(--warn)"), text:r.color === "r" ? "Красный день: вместо тренировки — спокойная прогулка 30 минут, тройка Макгилла и растяжка. Онемение, слабость или боль в ноге или руке — к врачу." : "Жёлтый день: вместо интервалов — 50 минут ровной зоны 2."})]));
     card.appendChild(condSec(day, cd, "main"));
     card.appendChild(det("Почему кардио устроено так — для сердца", [day.why ? h("p", {class:"small", text:day.why}) : null, plain(DATA.heart)], false));
-    card.appendChild(sec("Спина после кардио — 10 минут", [stepsBlock(day, "sp", DATA.spine)]));
+    card.appendChild(sec("Спина, ягодицы и плечи после кардио — 15 минут", [stepsBlock(day, "sp2", DATA.recovery)]));
   } else if(day.kind === "rest"){
     card.appendChild(sec("Зачем сегодня отдых", [h("p", {class:"small", text:DATA.restWhy})]));
     card.appendChild(condSec(day, DATA.cardios[day.cardio], "main"));
-    card.appendChild(sec("Спина и ягодицы дома — 12 минут", [stepsBlock(day, "rc", DATA.recovery)]));
+    card.appendChild(sec("Спина, ягодицы и плечи дома — 15 минут", [stepsBlock(day, "rc2", DATA.recovery)]));
   } else {
     if(day.opt != null) card.appendChild(condSec(day, DATA.cardios[day.opt], "opt"));
     card.appendChild(sec("После смены — 10 минут для спины", [h("p", {class:"small muted", text:(day.eve === 1 ? "Если есть силы — сначала лёгкая крутилка выше, потом этот протокол и сон." : "Завтра силовая — сегодня только этот протокол и сон.") + " Онемение или боль в ноге — не тренируйся, смотри «Красные флаги» в профиле."}), stepsBlock(day, "ev", DATA.evening)]));
@@ -880,7 +899,7 @@ function readySec(day){
 function warmSec(day){
   var items = itemsOf(day), w1 = null, it0 = null;
   items.some(function(it, idx){ if(it.role === "main" || it.role === "test"){ var s = suggest(day, it, idx, 0); if(s && s.w){ w1 = s.w; it0 = it; return true; } } return false; });
-  var lines = ["5–7 минут велосипеда, 1 круг тройки Макгилла (по 3 повтора) и разминка плеч со жгутом."];
+  var lines = ["5–7 минут велосипеда, 1 круг тройки Макгилла (по 3 повтора), плечи со жгутом: разведение рук 2 × 15 и наружная ротация 1 × 12 на каждую руку."];
   if(w1){
     var rr = function(x){ return fkg(Math.max(20, nearest(x, 2.5))); };
     var ramp = "гриф × 10 → " + rr(w1 * 0.5) + " × 5 → " + rr(w1 * 0.7) + " × 3" + (w1 >= 85 ? " → " + rr(w1 * 0.85) + " × 1" : "") + " → рабочие " + fkg(w1) + " кг";
@@ -1266,7 +1285,7 @@ function renderProfile(app){
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Красные флаги"}), plain(RED_FLAGS)]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Как устроено"}), plain([
     "<b>Программа</b> — гайды Кирилла Сарычева «Путь к 100 / 150 / 200 кг»: проценты, повторы, подходы, проходки. Неделя гайда — твой цикл из 8 дней, три дня гайда собраны в две силовые.",
-    "<b>Силовая А</b> — День 1 гайда и тяги из Дня 2. <b>Силовая Б</b> — День 3, один жим из Дня 2 (до 4 подходов) и упражнение на ноги или ягодицы. Жим и его вариации, тяги, трицепс и вся работа на бицепс и предплечья — как у Сарычева. Руки — в конце, парами с трицепсом или разводкой.",
+    "<b>Силовая А</b> — День 1 гайда и тяги из Дня 2. <b>Силовая Б</b> — День 3, один жим из Дня 2 (до 4 подходов), упражнение на ноги или ягодицы и тяга с упором грудью — спина работает дважды за цикл. Жим и его вариации, тяги, трицепс и вся работа на бицепс и предплечья — как у Сарычева. Руки — в конце, парами с трицепсом или разводкой.",
     "<b>Кардио для сердца.</b> База — зона 2, прогулки и заминки после зала; с гайда 150 раз в цикл — интервалы 4 × 4. Жёлтый в день кардио — зона 2 вместо интервалов, красный — прогулка.",
     "<b>Замены ради спины.</b> Присед со штангой → сплит-присед с гантелями (или широкий присед на скамью — переключатель выше; или разгибание ног, как разрешает гайд), становая → ягодичный мост, румынская тяга → сгибание ног на фитболе, жим стоя → жим сидя со спинкой, тяги в наклоне → с упором грудью, гиперэкстензия → ягодичный мост, пресс → тройка Макгилла, брусья — в гравитроне. Почему — в карточке упражнения.",
     "<b>Веса.</b> Жим — проценты гайда от максимума для расчёта. Вспомогательные жимы — по процентам, но не тяжелее «запаса 2» по твоей оценке. Подсобка — по оценке максимума из прошлой записи. Первый подход нового упражнения — проверочный.",
@@ -1277,7 +1296,8 @@ function renderProfile(app){
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 6.1"}), plain([
     "<b>Две силовые за цикл вместо трёх.</b> А — первый выходной, Б — третий. Между силовыми всегда три дня, а перед каждой парой смен — лёгкий день: кардио или восстановление.",
     "<b>Сохранено:</b> весь жим и его вариации (99% подходов), все тяги, трицепс и вся работа на бицепс и предплечья.",
-    "<b>Перенесено домой:</b> тройка Макгилла — каждый вечер, мостики из Дня 2 — в день восстановления. «Третий жим» Дня 2 — одно упражнение, до 4 подходов; в самые длинные дни — по желанию.",
+    "<b>Перенесено домой:</b> тройка Макгилла — каждый вечер, мостики из Дня 2 — в выходные без зала. «Третий жим» Дня 2 — одно упражнение, до 4 подходов; в самые длинные дни — по желанию.",
+    "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
     "Записи версии 6.0 переносятся в новую раскладку сами."
@@ -1315,7 +1335,7 @@ function importData(txt){
     var o = JSON.parse(txt), d = o && o.data ? o.data : o;
     if(!d || !d.profile) throw new Error("bad");
     var mine = !o.app || o.app === "bl6";
-    if(mine){ var days = d.days || {}; if(!(d.profile && d.profile.layout === 2)) migrateDays(days); S.profile = Object.assign(S.profile, d.profile || {}, {layout:2}); Object.keys(days).forEach(function(k){ if(/^s\d{3}$/.test(k)) S.days[k] = days[k]; }); WIDE = {}; }
+    if(mine){ var days = d.days || {}, L = (d.profile && d.profile.layout) || 1; if(L < 2) migrateDays(days); else if(L < LAYOUT) migrateRekey(days); S.profile = Object.assign(S.profile, d.profile || {}, {layout:LAYOUT}); Object.keys(days).forEach(function(k){ if(/^s\d{3}$/.test(k)) S.days[k] = days[k]; }); WIDE = {}; }
     else { ["rhr","age","hrmax","bw","stepDb","stepMc","sound","watch"].forEach(function(k){ if(d.profile[k] != null && d.profile[k] !== "") S.profile[k] = d.profile[k]; }); }
     if(d.body && d.body.length) S.body = d.body;
     ZT = null; CACHE = {}; persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); }
