@@ -14,7 +14,7 @@ android {
         targetSdk 34
         // 6.0: коды версий начинаются с 2000, чтобы обновление ставилось поверх всех сборок 5.0 (1000 + номер сборки)
         versionCode 2000 + runNumber
-        versionName "6.0.${runNumber}"
+        versionName "6.1.${runNumber}"
     }
 
     signingConfigs {

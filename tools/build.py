@@ -1,4 +1,4 @@
-"""Собирает приложение «Брюс Ли 6.0» (гайды Сарычева 100 → 150 → 200 на графике 2/2).
+"""Собирает приложение «Брюс Ли 6.1» (гайды Сарычева 100 → 150 → 200 на графике 2/2).
 
 program.txt + exercises.py -> appdata.py -> build-data/data.json
 web/app.html + data.json -> app/src/main/assets/index.html (то, что открывает APK)
@@ -28,7 +28,7 @@ open(index, "w", encoding="utf-8").write(html)
 print("index.html", len(html.encode("utf-8")), "bytes")
 
 # Веб-версия для Claude
-title = "<title>Брюс Ли 6.0</title>"
+title = "<title>Брюс Ли 6.1</title>"
 style = re.search(r"<style>([\s\S]*?)</style>", html).group(1)
 style = re.sub(r"@font-face\{[^}]*\}\n?", "", style)
 body = re.search(r"<body>\n?([\s\S]*)</body>", html).group(1)

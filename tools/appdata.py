@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Данные приложения «Брюс Ли 6.0»: гайды Сарычева 100 → 150 → 200 на графике 2/2.
+"""Данные приложения «Брюс Ли 6.1»: гайды Сарычева 100 → 150 → 200 на графике 2/2, две силовые за цикл.
 
 program.txt  — программа гайдов как есть (проценты, повторы, подходы).
 exercises.py — справочник упражнений приложения.
-Здесь: замены ради позвоночника, раскладка на график 2/2 (цикл 8 дней), кардио и вечерние протоколы.
-Веса не считаются здесь — их считает приложение по максимуму и записям (адаптивно).
+Здесь: замены ради позвоночника, сборка недели гайда в две силовые (А и Б), раскладка на цикл 8 дней,
+кардио для сердца и протоколы восстановления. Веса не считаются здесь — их считает приложение по максимуму и записям.
 
 Запуск: python3 tools/appdata.py out.json
 """
@@ -30,17 +30,20 @@ GUIDES = [
     {'id': '200', 'name': 'Гайд 200', 'weeks': 15},
 ]
 NCYC = sum(g['weeks'] for g in GUIDES)  # 37 циклов по 8 дней
-# слоты цикла 2/2: В1 — День 1 гайда, В2 — кардио, смены, В3 — День 3, В4 — День 2, смены
+# цикл 2/2: В1 — силовая А, В2 — кардио, две смены, В3 — силовая Б, В4 — восстановление, две смены.
+# Между силовыми всегда три дня, перед каждой парой смен — лёгкий день.
 SLOTS = [
-    {'kind': 'gym', 'gd': 'd1', 'name': 'Выходной 1', 'short': 'В1'},
+    {'kind': 'gym', 'gd': 'a', 'name': 'Выходной 1', 'short': 'В1'},
     {'kind': 'cardio', 'name': 'Выходной 2', 'short': 'В2'},
     {'kind': 'work', 'name': 'Смена 1', 'short': 'См'},
     {'kind': 'work', 'name': 'Смена 2', 'short': 'См'},
-    {'kind': 'gym', 'gd': 'd3', 'name': 'Выходной 3', 'short': 'В3'},
-    {'kind': 'gym', 'gd': 'd2', 'name': 'Выходной 4', 'short': 'В4'},
+    {'kind': 'gym', 'gd': 'b', 'name': 'Выходной 3', 'short': 'В3'},
+    {'kind': 'rest', 'name': 'Выходной 4', 'short': 'В4'},
     {'kind': 'work', 'name': 'Смена 1', 'short': 'См'},
     {'kind': 'work', 'name': 'Смена 2', 'short': 'См'},
 ]
+# где стояли дни гайда в версии 6.0 (В1 — День 1, В3 — День 3, В4 — День 2): по этим меткам приложение переносит старые записи
+OLD_SLOT = {'d1': 0, 'd3': 4, 'd2': 5}
 
 
 def parse_program():
@@ -96,10 +99,12 @@ def parse_program():
 # role: main — % от максимума жима (рабочий максимум гайда, адаптивный);
 #       pct  — % от максимума жима, но не тяжелее «запаса 2» по своей оценке (cap — доля от максимума жима по умолчанию);
 #       dbpct — % от максимума жима на пару гантелей; acc — вес по прошлым записям (стартовая оценка e — 1ПМ при жиме 105);
-#       own  — % от собственного максимума упражнения; gv — противовес гравитрона; bw — без веса; core — тройка Макгилла; note — текст.
+#       own  — % от собственного максимума упражнения; gv — противовес гравитрона; bw — без веса; core — тройка Макгилла; note — текст;
+#       sq   — широкий присед (по желанию в профиле): старт 40 кг, +2,5 кг за цикл при запасе 3+, потолок по гайду.
 WHY = {
     'squat': 'Штанга на плечах — осевая нагрузка на все отделы с протрузиями. Сплит-присед с гантелями — из твоей программы 5.0: ноги работают так же, '
-             'а спина нагружена в разы меньше. Вместо него можно разгибание ног — это разрешает сам гайд.',
+             'а спина нагружена в разы меньше. Вместо него можно разгибание ног — это разрешает сам гайд. '
+             'Широкий присед на скамью можно включить в профиле.',
     'dl': 'Становая при грыже и 12 часах наклонов на смене — главный риск всей программы. Ягодичный мост нагружает ту же заднюю цепь без сжатия дисков '
           'и учит подкручивать таз — то, чего не хватает при гиперлордозе.',
     'rdl': 'Румынская тяга — наклон под весом. Сгибание ног на фитболе в мосте нагружает заднюю поверхность бедра и ягодицы, не сгибая поясницу.',
@@ -115,6 +120,10 @@ WHY = {
     'bb_curl': 'Сарычев разрешает скамью Скотта: с опорой корпус не раскачивается и поясница не прогибается.',
     'core': 'Скручивания с весом многократно сгибают позвоночник под нагрузкой — при грыже это плохая сделка. Тройка Макгилла держит корпус жёстким, не сгибая его.',
 }
+WHY_WIDE = ('Включено в профиле вместо сплит-приседа. Широкая постановка и скамья на высоте колена держат корпус вертикальнее и ограничивают глубину — '
+            'рычаг на поясницу короче. Вес: старт 40 кг, +2,5 кг за цикл, если все повторы шли с запасом 3+ и на следующий день спина была в норме; '
+            'потолок 60 кг в гайде 150 и 70 кг в гайде 200. Гриф — специальный для приседа или низко на трапециях, не на шее: в шее протрузии. '
+            'Что-то отдаёт в ногу или на следующий день боль в спине выше 3 из 10 — сразу обратно на сплит-присед (Профиль → Присед).')
 ORIG = {
     'squat': 'Приседания со штангой', 'dl': 'Становая тяга', 'rdl': 'Мёртвая (румынская) тяга', 'hyper': 'Гиперэкстензия',
     'hyper_w': 'Гиперэкстензия с весом', 'standing_press': 'Жим штанги стоя', 'tbar': 'Тяга Т-грифа', 'bb_row': 'Тяга штанги в наклоне',
@@ -152,14 +161,15 @@ ENG = {
     'cs_db_row': 34, 'leg_ext': 75, 'leg_curl': 60, 'goblet_box': 36, 'split_db': 20, 'hipthrust': 120,
     'cg_bench': 0.90 * 105, 'mg_bench': 0.95 * 105, 'wg_bench': 0.95 * 105, 'incl_bench': 0.80 * 105, 'ohp_seat': 0.60 * 105,
 }
-REST = {'main': 180, 'test': 240, 'pct': 150, 'dbpct': 120, 'acc': 90, 'own': 120, 'gv': 90, 'bw': 60, 'farewell': 60, 'core': 0, 'note': 0}
+REST = {'main': 180, 'test': 240, 'pct': 150, 'dbpct': 120, 'acc': 90, 'own': 120, 'gv': 90, 'bw': 60, 'farewell': 60, 'core': 0, 'note': 0,
+        'sq': 150}
 
 
 def map_item(e):
     key = e['k']
     ex, role, prm = MAP[key]
     it = {'ex': ex, 'role': role, 'src': key}
-    for f in ('P', 'W', 'B', 'ss'):
+    for f in ('P', 'W', 'B', 'ss', 'o'):
         if f in e:
             it[f] = e[f]
     note = e.get('n')
@@ -178,6 +188,8 @@ def map_item(e):
             it['why'] = WHY[k]
             break
     it.update({k: v for k, v in prm.items() if k != 'rest'})
+    if e.get('opt'):
+        it['opt'] = 1
     it['rest'] = prm.get('rest', REST[role])
     if role == 'farewell':
         it['name'] = '«Прощание с залом»: 50 подтягиваний'
@@ -200,6 +212,8 @@ def map_item(e):
         p, r, s = it.pop('P')[0]
         it['W'] = [r, s]
         it['gp'] = p
+        # вариант из профиля: широкий присед на скамью (потолок веса ставит program() по гайду)
+        it['wide'] = {'ex': 'wide_box_squat', 'role': 'sq', 'rest': REST['sq'], 'rir': 3, 'per': '', 'why': WHY_WIDE}
     return it
 
 
@@ -210,30 +224,270 @@ DELOAD = {
            {'k': 'leg_curl', 'W': [12, 2], 'n': 'легко'}, {'k': 'hyper', 'B': [12, 2]}, {'k': 'core', 'B': [1, 2]}],
 }
 
+# ------------------------------------------------------------------ неделя гайда -> две силовые
+# А (В1) = День 1 + тяги из Дня 2.  Б (В3) = День 3 + один жим из Дня 2 (до 4 подходов) + ноги и ягодицы из Дня 2.
+# Жим, его вариации, тяги, трицепс и вся работа на бицепс и предплечья сохраняются. Пресс (тройка Макгилла) — дома каждый вечер,
+# мостики из Дня 2 — дома в день восстановления. Вторая разводка и махи из Дня 2 не дублируются.
+# Руки — в конце, парами с трицепсом или разводкой; если тренировка дольше 105 минут, третий жим из Дня 2 и вторая разводка — «по желанию».
+CAT = {}
+for _ks, _c in [('bench test bench_speed bench_neg board board15 sling', 'BM'),
+                ('cg_bench mg_bench wg_bench incl_bench seated_press standing_press db_bench_pct incl_db_pct db_bench incl_db db_seated dips cg_pushups', 'P2'),
+                ('french french_pct tri_push', 'TRI'), ('db_fly incl_db_fly', 'FLY'), ('lat_raise', 'DELT'),
+                ('bb_curl rev_curl db_curl hammer wrist_curl bb_curl_empty', 'ARM'),
+                ('lat_pull cable_row tbar bb_row db_row cg_pullups wide_pullups neg_pullups farewell', 'PULL'),
+                ('squat kb_squat bw_squat box_squat leg_ext leg_curl dl rdl hyper hyper_w', 'LOW'),
+                ('core', 'CORE'), ('meditation', 'NOTE')]:
+    for _k in _ks.split():
+        CAT[_k] = _c
+COMPOUND = {'BM', 'P2', 'LOW', 'PULL'}
+HOME = {'hyper', 'hyper_w'}
+LONG = 105  # минут: дольше — третий жим из Дня 2 и вторая разводка «по желанию»
+
+
+def _sets(e):
+    if 'P' in e:
+        return [r for p, r, n in e['P'] for _ in range(n)]
+    if 'W' in e:
+        return [e['W'][0]] * e['W'][1]
+    if 'B' in e:
+        return [e['B'][0]] * e['B'][1]
+    return []
+
+
+def _rest(e):
+    ex, role, prm = MAP[e['k']]
+    return prm.get('rest', REST[role]) / 60
+
+
+def _exec(e):
+    ex, role, prm = MAP[e['k']]
+    k = 2 if prm.get('per') else 1
+    return [(0.4 if r <= 5 else 0.6 if r <= 10 else 0.8 if r <= 15 else 1.0) * k for r in _sets(e)]
+
+
+def _single(e):
+    c = CAT[e['k']]
+    if c == 'CORE':
+        return 6.0
+    if c == 'NOTE':
+        return 5.0
+    if e['k'] == 'farewell':
+        return 10.0
+    return 1.5 + sum(x + _rest(e) for x in _exec(e))
+
+
+def _pair(u):
+    ex = [_exec(e) for e in u]
+    n = max(len(x) for x in ex)
+    rest = max(_rest(e) for e in u)
+    return 2.0 + sum(sum(x[i] for x in ex if i < len(x)) + rest for i in range(n))
+
+
+def est_minutes(us):
+    """Оценка длительности: разминка 8 мин, подводящие к жиму 8 мин, подходы и отдых по таймерам приложения."""
+    t = 8.0 + (8.0 if any(CAT[e['k']] == 'BM' for u in us for e in u) else 0.0)
+    return t + sum(_single(u[0]) if len(u) == 1 else _pair(u) for u in us)
+
+
+def _units(lst, src):
+    out = []
+    for i, e in enumerate(lst):
+        e = dict(e, o=[OLD_SLOT[src], i])
+        if e.get('ss') and out:
+            out[-1].append(e)
+        else:
+            out.append([e])
+    return out
+
+
+def _cat(u):
+    return CAT[u[0]['k']]
+
+
+def _split(us):
+    """День гайда: голова (до последнего базового упражнения), хвост (изоляция и руки), заметки. Пресс уходит домой."""
+    last = max([j for j, u in enumerate(us) if _cat(u) in COMPOUND], default=-1)
+    keep = lambda part: [u for u in part if _cat(u) not in ('CORE', 'NOTE')]
+    return keep(us[:last + 1]), keep(us[last + 1:]), [u for u in us if _cat(u) == 'NOTE']
+
+
+def _cap(u, n=4):
+    e = dict(u[0])
+    if 'P' in e:
+        P, left = [], n
+        for p, r, s in e['P']:
+            if left <= 0:
+                break
+            P.append([p, r, min(s, left)])
+            left -= min(s, left)
+        e['P'] = P
+    for f in ('W', 'B'):
+        if f in e:
+            e[f] = [e[f][0], min(e[f][1], n)]
+    return [e] + u[1:]
+
+
+LIGHT_LOW = {'leg_ext', 'leg_curl', 'kb_squat', 'box_squat', 'bw_squat', 'rdl'}
+PRESS_ACC = {'db_bench', 'incl_db', 'db_seated', 'cg_pushups'}
+
+
+def _kind(u):
+    """Тип одиночного упражнения для суперсетов; None — не ставится в пару (жимы от максимума, тяжёлые ноги, пары гайда)."""
+    if len(u) != 1 or u[0].get('opt'):
+        return None
+    k, c = u[0]['k'], _cat(u)
+    if c in ('TRI', 'FLY', 'DELT', 'ARM', 'PULL') and k != 'farewell':
+        return c
+    if c == 'LOW' and k in LIGHT_LOW:
+        return 'LOWL'
+    if k in PRESS_ACC:
+        return 'PACC'
+    return None
+
+
+# суперсеты: первый — второй (по порядку предпочтения). Руки в паре всегда вторые и только после всех жимов.
+PAIR_RULES = [
+    ('TRI', ('ARM',)),                       # трицепс + бицепс / предплечья
+    ('PULL', ('PACC', 'FLY', 'DELT', 'TRI')),  # тяга + жим гантелей / разводка / махи / трицепс
+    ('LOWL', ('DELT', 'FLY', 'TRI')),          # лёгкие ноги + изоляция верха
+    ('FLY', ('ARM',)), ('DELT', ('ARM',)), ('LOWL', ('ARM',)),
+]
+
+
+def _presses(u):
+    return any(CAT[e['k']] in ('BM', 'P2') for e in u)
+
+
+def _pair_all(us):
+    us = [list(u) for u in us]
+    for a_kind, b_kinds in PAIR_RULES:
+        j = 0
+        while j < len(us):
+            u = us[j]
+            if _kind(u) == a_kind:
+                last_press = max([i for i, v in enumerate(us) if _presses(v)], default=-1)
+                partner = None
+                for bk in b_kinds:
+                    if bk == 'ARM' and j < last_press:
+                        continue  # руки не встают перед жимами
+                    cands = [v for v in us if v is not u and _kind(v) == bk]
+                    if bk == 'ARM':
+                        cands = [v for v in cands if us.index(v) > j] or cands
+                    if cands:
+                        partner = cands[0]
+                        break
+                if partner:
+                    pi = us.index(partner)
+                    us[j] = u + [dict(partner[0], ss=1)]
+                    us.pop(pi)
+                    if pi < j:
+                        j -= 1
+            j += 1
+    return us
+
+
+def _arms_last(us):
+    """Руки — в самом конце, после всех жимов и тяг (кроме пар, которые ставит сам гайд, например жим + обратный хват)."""
+    is_arm = lambda u: any(CAT[e['k']] == 'ARM' for e in u) and not any(CAT[e['k']] in ('BM', 'P2') for e in u)
+    is_end = lambda u: _cat(u) == 'NOTE' or u[0]['k'] == 'farewell'
+    body = [u for u in us if not is_end(u)]
+    return [u for u in body if not is_arm(u)] + [u for u in body if is_arm(u)] + [u for u in us if is_end(u)]
+
+
+def _flat(us):
+    return [e for u in us for e in u]
+
+
+def merge_week(wk, test):
+    d = wk['d']
+    if test:  # проходка в А, разгрузка в Б
+        A = [u for u in _units(d['d1'], 'd1') if _cat(u) != 'CORE']
+        B = [u for u in _units(DELOAD['d3'], 'd3') + _units(DELOAD['d2'], 'd2') if _cat(u) != 'CORE' and u[0]['k'] not in HOME]
+        return A, B
+    h1, t1, n1 = _split(_units(d['d1'], 'd1'))
+    h3, t3, n3 = _split(_units(d['d3'], 'd3'))
+    u2 = _units(d['d2'], 'd2')
+    pulls = [u for u in u2 if _cat(u) == 'PULL' and u[0]['k'] != 'farewell']
+    fare = [u for u in u2 if u[0]['k'] == 'farewell']
+    press = [_cap(u) for u in u2 if _cat(u) in ('P2', 'BM')][:1]
+    low = [u for u in u2 if _cat(u) == 'LOW' and u[0]['k'] not in HOME][:1]
+    have, iso2 = {_cat(u) for u in h3 + t3}, []
+    for u in u2:
+        c = _cat(u)
+        if c in ('TRI', 'ARM'):
+            iso2.append(u)
+        elif c in ('FLY', 'DELT') and c not in have:
+            iso2.append(u)
+            have.add(c)
+    A = [h1 + pulls, t1, fare + n1]
+    B = [h3 + press + low, t3 + iso2, n3]
+    def tt(parts):
+        return est_minutes(_pair_all(_flat_s(parts)))
+
+    movable = [(u, 0) for u in pulls] + [(u, 1) for u in low]  # тяги могут переехать в Б, ноги — в А
+    for _ in range(2):  # до двух переездов, если это заметно выравнивает тренировки
+        cur = max(tt(A), tt(B))
+        best = None
+        for u, side in movable:
+            src, dst = (A, B) if side == 0 else (B, A)
+            if not any(u is x for x in src[0]):
+                continue
+            s2 = [[x for x in src[0] if x is not u], src[1], src[2]]
+            d2_ = [dst[0] + [u], dst[1], dst[2]]
+            nA, nB = (s2, d2_) if side == 0 else (d2_, s2)
+            m = max(tt(nA), tt(nB))
+            if m < cur - 3 and (best is None or m < best[0]):
+                best = (m, nA, nB)
+        if not best:
+            break
+        A, B = best[1], best[2]
+    out = []
+    for head, tail, end in (A, B):
+        us = _arms_last(_pair_all(head + tail + end))
+        if est_minutes(us) > LONG:  # самый длинный день: третий жим из Дня 2 и вторая разводка — по желанию
+            fly_seen = False
+            for u in us:
+                if len(u) == 1 and any(u[0] is p[0] or u[0] == p[0] for p in press):
+                    u[0] = dict(u[0], opt=1)
+                elif len(u) == 1 and _cat(u) == 'FLY':
+                    if fly_seen:
+                        u[0] = dict(u[0], opt=1)
+                    fly_seen = True
+        out.append(us)
+    return out[0], out[1]
+
+
+def _flat_s(parts):
+    return [u for part in parts for u in part]
+
 
 def program():
     raw = parse_program()
     out = {}
-    for g in GUIDES:
+    for gi, g in enumerate(GUIDES):
         weeks = []
-        for wk in raw[g['id']]:
+        for w, wk in enumerate(raw[g['id']], 1):
+            test = w == g['weeks']
+            A, B = merge_week(wk, test)
             days = {}
-            for dk in ('d1', 'd2', 'd3'):
-                src = wk['d'].get(dk)
-                dl = False
-                if src is None:
-                    src, dl = DELOAD[dk], True
-                items = [map_item(e) for e in src]
+            for dk, us in (('a', A), ('b', B)):
+                items = [map_item(e) for e in _flat(us)]
                 for it in items:
-                    if dl:
+                    if test and dk == 'b':
                         it['dl'] = 1
-                days[dk] = {'items': items, 'deload': dl, 'test': any(it['role'] == 'test' for it in items)}
+                    if 'wide' in it:
+                        it['wide']['cap'] = 60 if gi == 1 else 70
+                full = int(5 * round(est_minutes(us) / 5))
+                core = int(5 * round(est_minutes([u for u in us if not (u[0].get('opt') or MAP[u[0]['k']][2].get('opt'))]) / 5))
+                days[dk] = {'items': items, 'deload': test and dk == 'b', 'test': any(it['role'] == 'test' for it in items), 'mins': full}
+                if core < full:
+                    days[dk]['minsCore'] = core
             weeks.append(days)
         out[g['id']] = weeks
     return out
 
 
-# ------------------------------------------------------------------ кардио и протоколы
+# ------------------------------------------------------------------ кардио для сердца и протоколы
 def seg(l, s, k='work', t=None):
     d = {'l': l, 's': int(s), 'k': k}
     if t:
@@ -246,41 +500,61 @@ def z2_session(mins, title='Кардио: зона 2'):
     segs = ([seg('Разминка — зона 1', w * 60, 'warm', 'пульс {Z1}')] if w else []) + \
            [seg('Зона 2', (mins - 2 * w) * 60, 'work', 'пульс {Z2}, дышишь носом, говоришь фразами')] + \
            ([seg('Заминка — зона 1', w * 60, 'easy', 'пульс {Z1}')] if w else [])
-    return {'title': title, 'mins': mins, 'kind': 'z2', 'segs': segs,
-            'lines': ['Велосипед или ходьба в горку (уклон 6–10%, без поручней). Не бег и не гребной тренажёр — они бьют по дискам.',
-                      'Пульс {Z2} — это зона 2 по твоему пульсу покоя из профиля.']}
+    return {'title': title, 'mins': mins, 'eq': mins, 'kind': 'z2', 'segs': segs,
+            'lines': ['Велосипед, эллипс или ходьба в горку (уклон 6–10%, без поручней). Не бег и не гребной тренажёр — они бьют по дискам.',
+                      'Пульс {Z2} — зона 2 по твоему пульсу покоя из профиля: дышишь носом и можешь говорить фразами. Пульс уходит выше — сбавь темп, а не терпи.']}
 
 
 def int_session():
-    segs = [seg('Разминка — зона 2', 600, 'warm', 'пульс {Z2}')]
+    segs = [seg('Разминка — зона 2', 600, 'warm', 'пульс {Z2}, последние 2 минуты чуть быстрее')]
     for i in range(4):
-        segs.append(seg(f'Отрезок {i + 1}/4 — тяжело', 240, 'work', 'пульс {Z5}, темп держишь до конца'))
+        segs.append(seg(f'Отрезок {i + 1}/4 — тяжело', 240, 'work', 'к концу 2-й минуты пульс {Z5} — и держишь до конца отрезка'))
         if i < 3:
             segs.append(seg('Отдых — легко крутишь', 180, 'easy', 'пульс {Z1}'))
     segs.append(seg('Заминка', 360, 'easy', 'пульс {Z1}'))
-    return {'title': 'Интервалы 4 × 4 мин', 'mins': 40, 'kind': 'int', 'segs': segs,
-            'lines': ['Велосипед или крутая горка, не бег.', 'Плохо спал, ноет спина или жёлтый день — вместо интервалов 50 минут зоны 2.',
-                      'Боль или давление в груди, необычная одышка, головокружение — стоп и к врачу.']}
+    return {'title': 'Интервалы 4 × 4 мин', 'mins': 40, 'eq': 56, 'kind': 'int', 'segs': segs,
+            'lines': ['Норвежский протокол: 4 отрезка по 4 минуты на 85–95% от максимального пульса, между ними 3 минуты легко.',
+                      'Велосипед или крутая горка, не бег. Темп ровный: последний отрезок не слабее первого. Пульс догоняет нагрузку за 1–2 минуты — это нормально.',
+                      'Плохо спал, ноет спина или нет сил — выбери жёлтый в светофоре: вместо интервалов будут 50 минут зоны 2.',
+                      'Боль или давление в груди, необычная одышка, перебои, головокружение — стоп и к врачу.']}
 
 
-def short_session(mins, z, title):
-    t = 'пульс {Z1}' if z == 1 else 'пульс {Z2}'
-    return {'title': title, 'mins': mins, 'kind': 'z' + str(z), 'segs': [seg('Зона ' + str(z), mins * 60, 'work' if z == 2 else 'easy', t)], 'lines': []}
+def walk_session(mins, title):
+    return {'title': title, 'mins': mins, 'eq': mins, 'kind': 'walk',
+            'segs': [seg('Прогулка — быстрый шаг', mins * 60, 'easy', 'пульс {Z1}')],
+            'lines': ['На улице, быстрым шагом, руки свободно работают. Пульс {Z1}: дышишь носом, говорить легко.',
+                      'Ходьба — лучшая нагрузка для поясницы: диски «питаются» от движения, мышцы спины работают без сжатия.']}
+
+
+def easy_bike(mins, title, lines, opt=False):
+    d = {'title': title, 'mins': mins, 'eq': mins, 'kind': 'z1', 'segs': [seg('Велосипед — легко', mins * 60, 'easy', 'пульс {Z1}')], 'lines': lines}
+    if opt:
+        d['opt'] = 1
+    return d
 
 
 def cardio_main(gi, w, weeks):
-    test = w == weeks
-    if test:
-        return z2_session(40), 'После проходки — только лёгкая аэробика.'
+    if w == weeks:
+        return z2_session(40), 'Вчера была проходка — сегодня только спокойная зона 2.'
     if gi == 0:
-        return z2_session([40, 45, 45, 50, 50, 55, 55, 60][w - 1]), 'Гайд 100 — строим базу: только зона 2.'
-    if w >= 11:
-        m = 45 if not (gi == 2 and w >= 13) else (30 if w == 14 else 40)
+        return z2_session([45, 45, 50, 50, 55, 55, 60, 60][w - 1]), \
+            'Гайд 100 — строим аэробную базу: только зона 2, каждые два цикла на 5 минут дольше. Интервалы начнутся в гайде 150.'
+    last_int = 10 if gi == 1 else 12
+    if w > last_int:
+        m = 45 if gi == 1 else (40 if w == 13 else 30)
         return z2_session(m), 'Перед проходкой интервалы убраны — силы идут в жим.'
-    if w % 2 == 0:
-        return int_session(), 'Интервалы раз в два цикла — для выносливости сердца.'
-    return z2_session(60), ''
+    return int_session(), 'Раз в цикл — интервалы 4 × 4: они сильнее всего поднимают МПК, а он лучше всего показывает, насколько здорово сердце.'
 
+
+HEART = [
+    '<b>Объём спокойной аэробики</b> — зона 2, прогулка, заминки после зала. Она снижает давление и пульс покоя, тренирует сосуды и обмен веществ, помогает худеть и не мешает восстановлению.',
+    '<b>Одна тяжёлая интервальная за цикл</b> — с гайда 150. Норвежские 4 × 4 сильнее всего поднимают МПК (VO2max), а он лучше всего показывает, насколько здорово сердце.',
+    '<b>Сколько.</b> Минута интервалов идёт за две минуты спокойной работы. За цикл выходит около 2 часов кардио. С лёгкой крутилкой после первых смен — около 2,5 часа, это рекомендация ВОЗ: 150 минут в неделю.',
+    '<b>Смена кардио не заменяет:</b> 12 часов работы держат пульс высоким без отдыха, а сердце крепнет от тренировки с восстановлением после неё.',
+    '<b>Как понять, что работает:</b> за 2–3 месяца пульс покоя по утрам снижается на 3–8 ударов, а тот же темп на велосипеде даётся при меньшем пульсе. Записывай пульс покоя в профиль раз в цикл.',
+]
+REST_WHY = ('Сегодня без зала: между силовыми три дня, и перед сменами спине нужен свежий день. '
+            'Прогулка разгоняет кровь и «кормит» диски, мостик и тройка Макгилла держат ягодицы и корпус в тонусе.')
 
 MCGILL = [
     {'ex': 'curlup', 't': '<b>Скручивание по Макгиллу</b> — 6 удержаний по 10 с', 'segs': [seg('Скручивание — удержание', 10, 'work') if i % 2 == 0 else seg('Отпусти', 5, 'easy') for i in range(11)]},
@@ -305,22 +579,28 @@ def spine_steps():
     ]
 
 
+def recovery_steps():
+    s = spine_steps()
+    return s[:3] + [{'ex': 'bridge', 't': '<b>Ягодичный мост с резинкой над коленями</b> — 2 × 15, наверху пауза 2 с. Стало легко — на одной ноге, 2 × 10 на каждую'}] + s[3:]
+
+
 READY_GYM = [
     '<b>Пульс покоя</b> (лёжа, сразу после пробуждения): норма — ±5 от обычного; жёлтый — +6–9; красный — +10 и больше или простуда.',
     '<b>Сон:</b> норма — 7 ч и больше; жёлтый — 5,5–7 ч; красный — меньше 5,5 ч.',
     '<b>Боль в пояснице или шее (0–10):</b> норма — 0–2; жёлтый — 3–4 или скованность дольше 30 мин; красный — 5 и выше.',
     '<b>Смена накануне:</b> тяжёлая (переработка, больше 15 тыс. шагов, усталость 8 из 10) — жёлтый.',
     '<b>Первый разминочный подход жима</b> (55–60% на 5) идёт заметно тяжелее обычного — жёлтый.',
-    '<b>Решение.</b> Всё в норме — по плану. Жёлтый — приложение снизит веса на 10% и уберёт подходы от 90%, интервалы — на зону 2. '
-    'Красный — вместо зала восстановление: 30 мин зоны 1–2, тройка Макгилла и растяжка.',
+    '<b>Решение.</b> Всё в норме — по плану. Жёлтый — в зале веса −10% и без подходов от 90%, в день кардио вместо интервалов — зона 2. '
+    'Красный — вместо зала и интервалов восстановление: 30 мин прогулки, тройка Макгилла и растяжка.',
     '<b>Онемение, слабость или боль в ноге или руке — не жёлтый, а стоп</b>: тренировку отменить, план действий — в «Красных флагах» профиля.',
 ]
 FOOD_SHIFT = ('<b>Рабочий день — около 2100 ккал:</b> белок 165 г, жиры 75 г, углеводы ≈ 190 г, клетчатка 30–40 г, вода 2,5–3 л. '
               'Завтрак около 06:00 (35–40 г белка, самый углеводный приём), обед в 11–12 (40 г белка), перекус в 15–16 (25–30 г), '
               'ужин в 19:50–20:20 (40 г белка, мало жира) — не позже чем за 1,5 ч до сна. Кофеин — до 14:00.')
-FOOD_GYM = ('<b>День зала — около 2350 ккал:</b> белок 165 г, жиры 70 г, углеводы ≈ 265 г; 4 приёма по ≈ 40 г белка; основные углеводы — до и после зала. '
+FOOD_GYM = ('<b>День силовой — около 2350 ккал:</b> белок 165 г, жиры 70 г, углеводы ≈ 265 г; 4 приёма по ≈ 40 г белка; основные углеводы — до и после зала. '
+            'Это самый сытный день цикла — не урезай его: недобор калорий в день силовой бьёт по восстановлению. '
             'Вода 2,5–3 л и ещё 0,5 л на час тренировки. Креатин моногидрат 3–5 г в день — по желанию. Кофеин — до 14:00.')
-FOOD_REST = ('<b>Выходной без зала — около 2200 ккал:</b> белок 165 г, углеводы меньше, чем в день зала. Прогулка 30–40 мин — лучший добор против висцерального жира.')
+FOOD_REST = ('<b>Выходной без зала — около 2200 ккал:</b> белок 165 г, углеводы меньше, чем в день зала. Прогулка и кардио — лучший добор против висцерального жира.')
 FOOD_RULE = 'Раз в 2 недели сверяй средний вес: худеешь медленнее 0,3 кг в неделю — минус 150 ккал (углеводы и жиры); быстрее 0,8 кг — плюс 150 ккал.'
 SLEEP_SHIFT = 'Сон 22:00 – 05:30: экран убрать за 45 минут, в спальне темно и прохладно. Интенсивной нагрузки вечером нет.'
 SLEEP_OFF = 'Сон 7,5–9 часов, подъём в одно время ±1 час. Зал — через 1,5–3 часа после еды; первые 1–2 часа после сна без тяжёлых наклонов: диски ещё «набухшие».'
@@ -331,24 +611,18 @@ def gym_title(dk, d):
         return 'Проходка: разовый максимум в жиме'
     if d['deload']:
         return 'Разгрузка после проходки'
-    exs = [it['ex'] for it in d['items']]
-    legs = any(x in exs for x in ('split_db', 'leg_ext', 'goblet_box', 'box_squat'))
-    back = any(x in exs for x in ('hipthrust', 'tbar_cs', 'latpd', 'seatrow', 'pullup_cg', 'pullup_wg', 'cs_db_row'))
-    if dk == 'd2':
-        parts = ['спина']
-        if any(x in exs for x in ('hipthrust', 'leg_curl', 'fitball_curl', 'split_db', 'leg_ext', 'goblet_box')):
-            parts.append('ноги')
-        if any(it['role'] in ('pct', 'main') or it['ex'] in ('incl_db', 'db_seated', 'lat_raise') for it in d['items']):
-            parts.append('плечи и жимы')
-        return 'Спина' + (', ' + ', '.join(parts[1:]) if len(parts) > 1 else '')
-    t = 'Жим лёжа'
-    if any(it['ex'] == 'bench_speed' for it in d['items']):
-        t = 'Скоростной жим'
-    if legs:
-        t += ' и ноги'
-    elif back:
-        t += ' и спина'
-    return t
+    exs = {it['ex'] for it in d['items']}
+    t = 'Скоростной жим' if 'bench_speed' in exs else 'Жим лёжа'
+    parts = []
+    if exs & {'split_db', 'leg_ext', 'goblet_box', 'box_squat', 'leg_curl'}:
+        parts.append('ноги')
+    if exs & {'hipthrust', 'fitball_curl', 'bridge_sl', 'bridge'}:
+        parts.append('ягодицы')
+    if exs & {'tbar_cs', 'latpd', 'seatrow', 'pullup_cg', 'pullup_wg', 'cs_db_row', 'pullup_neg'}:
+        parts.append('спина')
+    if not parts:
+        return t
+    return t + (', ' + ', '.join(parts[:-1]) + ' и ' + parts[-1] if len(parts) > 1 else ' и ' + parts[0])
 
 
 def build():
@@ -363,6 +637,14 @@ def build():
             pool.append(obj)
         return pidx[k]
 
+    cool = ref(easy_bike(10, 'После зала: заминка 10 мин', ['Велосипед или ходьба, пульс {Z1}: разгоняет кровь после тяжёлых подходов.']))
+    walk = ref(walk_session(50, 'Прогулка 50 минут'))
+    spin = ref(easy_bike(20, 'По желанию: лёгкая крутилка 20 мин', [
+        'Велотренажёр дома, пульс {Z1} — так легко, что можно говорить без пауз.',
+        'Только если есть силы. Устал после смены — пропусти: восстановление важнее.',
+        'Закончи не позже чем за 1,5 часа до сна.'], opt=True))
+    alt_y = ref(z2_session(50, 'Жёлтый день: зона 2 вместо интервалов'))
+    alt_r = ref(walk_session(30, 'Красный день: прогулка 30 минут'))
     for gi, g in enumerate(GUIDES):
         for w in range(1, g['weeks'] + 1):
             c = gstart + w
@@ -371,30 +653,28 @@ def build():
                 d = {'d': (c - 1) * 8 + i + 1, 'c': c, 'i': i, 'g': gi, 'w': w, 'kind': sl['kind']}
                 if sl['kind'] == 'gym':
                     gd = prog[g['id']][w - 1][sl['gd']]
-                    d['gd'] = sl['gd']
-                    d['test'] = gd['test']
-                    d['deload'] = gd['deload']
-                    d['title'] = gym_title(sl['gd'], gd)
-                    if i == 0:
-                        d['after'] = ref(short_session(10, 1, 'После зала: заминка 10 мин'))
-                    elif i == 4:
-                        d['after'] = ref(short_session(15 if gi == 0 else 20, 2, 'После зала: зона 2'))
-                    else:
-                        d['after'] = ref(short_session(15, 2, 'После зала: зона 2 — ходьба в горку или велосипед'))
-                    d['food'] = 'gym'
+                    d.update(gd=sl['gd'], test=gd['test'], deload=gd['deload'], title=gym_title(sl['gd'], gd), mins=gd['mins'],
+                             after=cool, food='gym')
+                    if 'minsCore' in gd:
+                        d['minsCore'] = gd['minsCore']
                 elif sl['kind'] == 'cardio':
-                    d['title'] = 'Кардио и спина' if main['kind'] == 'z2' else 'Интервалы и спина'
-                    d['cardio'] = ref(main)
-                    d['why'] = why
-                    d['food'] = 'rest'
+                    d.update(title='Сердце: ' + ('интервалы 4 × 4' if main['kind'] == 'int' else 'зона 2'), cardio=ref(main), why=why,
+                             red=alt_r, food='rest')
+                    if main['kind'] == 'int':
+                        d['alt'] = alt_y
+                elif sl['kind'] == 'rest':
+                    d.update(title='Восстановление: прогулка и спина', cardio=walk, food='rest')
                 else:
-                    d['title'] = 'Смена: восстановление'
-                    d['food'] = 'shift'
+                    first = i in (2, 6)
+                    d.update(title='Смена: восстановление', food='shift', eve=1 if first else 2)
+                    if first:
+                        d['opt'] = spin
                 days.append(d)
         gstart += g['weeks']
     assert len(days) == NCYC * 8
     used = {it['ex'] for g in prog.values() for wk in g for dd in wk.values() for it in dd['items']}
-    used |= {'curlup', 'splank', 'birddog', 'breath9090', 'hipflex', 'couch', 'lying9090', 'leg_ext'}
+    used |= {it['wide']['ex'] for g in prog.values() for wk in g for dd in wk.values() for it in dd['items'] if 'wide' in it}
+    used |= {'curlup', 'splank', 'birddog', 'breath9090', 'hipflex', 'couch', 'lying9090', 'leg_ext', 'bridge'}
     used.discard('core')
     ex = {k: v for k, v in EX.items() if k in used}
     missing = used - set(EX)
@@ -406,7 +686,8 @@ def build():
              {'id': 'Z5', 'name': 'Зона 5 — интервалы', 'lo': 0.80, 'hi': 0.90}]
     food = {'gym': [FOOD_GYM, FOOD_RULE, SLEEP_OFF], 'rest': [FOOD_REST, FOOD_RULE, SLEEP_OFF], 'shift': [FOOD_SHIFT, FOOD_RULE, SLEEP_SHIFT]}
     return {'guides': GUIDES, 'slots': SLOTS, 'prog': prog, 'days': days, 'ex': ex, 'groups': X.GROUPS, 'eng': ENG, 'cardios': pool, 'food': food,
-            'evening': evening_steps(), 'spine': spine_steps(), 'mcgill': MCGILL, 'ready': READY_GYM, 'zones': zones}
+            'evening': evening_steps(), 'spine': spine_steps(), 'recovery': recovery_steps(), 'mcgill': MCGILL, 'ready': READY_GYM, 'zones': zones,
+            'heart': HEART, 'restWhy': REST_WHY, 'layout': 2}
 
 
 def main(out):
