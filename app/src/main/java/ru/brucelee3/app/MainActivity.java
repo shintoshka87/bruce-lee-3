@@ -152,58 +152,100 @@ public class MainActivity extends Activity {
         nm.createNotificationChannel(ch);
     }
 
-    static PendingIntent alertIntent(Context c, int id, String title, String text) {
+    /** Повторы сигнала идут под своим номером (id + CHAIN), чтобы не мешать следующему отдыху. */
+    static final int CHAIN = 1000;
+    static final String PREFS = "alerts";
+
+    /** left — сколько сигналов осталось, считая этот; n — номер сигнала; t0 — когда должен был прийти первый. */
+    static PendingIntent alertIntent(Context c, int req, int id, String title, String text,
+                                     int left, int gap, int n, int total, long t0, int prev) {
         Intent i = new Intent(c, AlertReceiver.class);
         i.putExtra("id", id);
         i.putExtra("title", title);
         i.putExtra("text", text);
-        return PendingIntent.getBroadcast(c, id, i,
+        i.putExtra("left", left);
+        i.putExtra("gap", gap);
+        i.putExtra("n", n);
+        i.putExtra("total", total);
+        i.putExtra("t0", t0);
+        i.putExtra("prev", prev);
+        return PendingIntent.getBroadcast(c, req, i,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     /** Что открыть, если нажать на значок будильника в строке состояния. */
-    PendingIntent showIntent() {
-        Intent i = new Intent(this, MainActivity.class);
+    static PendingIntent showIntent(Context c) {
+        Intent i = new Intent(c, MainActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        return PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(c, 1, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    static boolean exactAllowed(Context c) {
+        if (Build.VERSION.SDK_INT < 31) return true;
+        AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        return am != null && am.canScheduleExactAlarms();
     }
 
     boolean exactAllowed() {
-        if (Build.VERSION.SDK_INT < 31) return true;
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        return am != null && am.canScheduleExactAlarms();
+        return exactAllowed(this);
+    }
+
+    /** Сигнал ставится как будильник: такой будильник система не сдвигает и будит телефон из энергосбережения.
+     *  Обычный «точный» сигнал при выключенном экране Android пропускает не чаще 7 раз в час,
+     *  остальные откладывает до окна обслуживания — отсюда опоздания на минуты и пропуски. */
+    static void setAlarm(Context c, long at, PendingIntent p) {
+        AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+        try {
+            if (exactAllowed(c)) {
+                am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, showIntent(c)), p);
+            } else {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+            }
+        } catch (SecurityException e) {
+            try {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+            } catch (SecurityException e2) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+            }
+        }
+    }
+
+    static void cancelReq(Context c, int req) {
+        PendingIntent p = PendingIntent.getBroadcast(c, req, new Intent(c, AlertReceiver.class),
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+        if (p == null) return;
+        AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        if (am != null) am.cancel(p);
+        p.cancel();
     }
 
     class Bridge {
         @JavascriptInterface
         public void scheduleAlert(int id, double atMs, String title, String text) {
-            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            if (am == null) return;
-            PendingIntent p = alertIntent(MainActivity.this, id, title, text);
+            scheduleAlertRep(id, atMs, title, text, 1, 0);
+        }
+
+        /** Сигнал в момент atMs и ещё count − 1 повторов через gapMs — пока не возьмёшь телефон. */
+        @JavascriptInterface
+        public void scheduleAlertRep(int id, double atMs, String title, String text, int count, int gapMs) {
             long at = (long) atMs;
-            // Сигнал ставится как будильник: такой будильник система не сдвигает и будит телефон из энергосбережения.
-            // Обычный «точный» сигнал при выключенном экране Android пропускает не чаще 7 раз в час,
-            // остальные откладывает до окна обслуживания — отсюда опоздания на минуты и пропуски.
-            try {
-                if (exactAllowed()) {
-                    am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, showIntent()), p);
-                } else {
-                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
-                }
-            } catch (SecurityException e) {
-                try {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
-                } catch (SecurityException e2) {
-                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
-                }
-            }
+            int n = Math.max(1, Math.min(20, count));
+            cancelReq(MainActivity.this, id + CHAIN);
+            setAlarm(MainActivity.this, at,
+                    alertIntent(MainActivity.this, id, id, title, text, n, Math.max(0, gapMs), 1, n, at, 0));
         }
 
         @JavascriptInterface
         public void cancelAlert(int id) {
-            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            if (am == null) return;
-            am.cancel(alertIntent(MainActivity.this, id, "", ""));
+            cancelReq(MainActivity.this, id);
+            cancelReq(MainActivity.this, id + CHAIN);
+        }
+
+        /** Взял телефон — повторы сигнала, которые уже начались, замолкают. */
+        @JavascriptInterface
+        public void stopAlertChain() {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putLong("stop", System.currentTimeMillis()).apply();
         }
 
         @JavascriptInterface
