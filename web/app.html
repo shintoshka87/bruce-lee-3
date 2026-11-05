@@ -630,11 +630,13 @@ function touch(){ lastActivity = Date.now(); keepAwake(true); }
 
 /* ================= таймеры ================= */
 var T = null;
-function startRest(sec, label, next){
+/* opt: head — «Отдых», «Переход», «Отдых после пары»; why — почему столько; noWatch — без сигнала на часы (короткий переход) */
+function startRest(sec, label, next, opt){
   stopTimer(true);
   if(sec <= 0) return;
-  T = {mode:"rest", end:Date.now() + sec * 1000, total:sec, label:label, next:next, warned:{}};
-  if(watchOn("rest")) alertAt(1, T.end, "Отдых окончен", next || label);
+  opt = opt || {};
+  T = {mode:"rest", end:Date.now() + sec * 1000, total:sec, label:label, next:next, warned:{}, head:opt.head || "Отдых", why:opt.why || "", noWatch:!!opt.noWatch};
+  if(watchOn("rest") && !T.noWatch) alertAt(1, T.end, T.head === "Переход" ? "Переход" : "Отдых окончен", next || label);
   touch(); drawTimer();
 }
 /* opt: sid — какой список подсвечивать; big — крупный экран; steps + onStep — домашний блок: шаг отмечается, когда таймер с него уходит */
@@ -690,10 +692,10 @@ function stopTimer(silent){
   if(T && T.mode === "seq" && NATIVE) for(var i = 0; i < 40; i++) alertCancel(100 + i);
   T = null; if(!silent){ drawTimer(); updateSegLists(); updateStepLists(false); }
 }
-function adjustRest(d){ if(!T) return; T.end += d * 1000; if(T.mode === "rest"){ T.total += d; if(watchOn("rest")) alertAt(1, T.end, "Отдых окончен", T.next || T.label); } else scheduleSeqAlerts(); drawTimer(); }
+function adjustRest(d){ if(!T) return; T.end += d * 1000; if(T.mode === "rest"){ T.total += d; if(watchOn("rest") && !T.noWatch) alertAt(1, T.end, "Отдых окончен", T.next || T.label); } else scheduleSeqAlerts(); drawTimer(); }
 function togglePause(){
   if(!T) return;
-  if(T.paused){ T.end = Date.now() + T.left; T.paused = false; if(T.mode === "rest" && watchOn("rest")) alertAt(1, T.end, "Отдых окончен", T.next || T.label); scheduleSeqAlerts(); }
+  if(T.paused){ T.end = Date.now() + T.left; T.paused = false; if(T.mode === "rest" && watchOn("rest") && !T.noWatch) alertAt(1, T.end, "Отдых окончен", T.next || T.label); scheduleSeqAlerts(); }
   else { T.left = T.end - Date.now(); T.paused = true; alertCancel(1); if(NATIVE) for(var i = 0; i < 40; i++) alertCancel(100 + i); }
   drawTimer();
 }
@@ -702,18 +704,18 @@ function tick(){
   if(T && !T.paused){
     var left = (T.end - Date.now()) / 1000, whole = Math.ceil(left);
     if(whole <= 3 && whole >= 1 && !T.warned[whole] && (T.mode === "rest" || T.seg.s > 8)){ T.warned[whole] = 1; signalTick(); }
-    if(left <= 0){ if(T.mode === "rest"){ T = null; signalEnd(); drawTimer(true); return; } nextSeg(); return; }
+    if(left <= 0){ if(T.mode === "rest"){ var fin = T; T = null; signalEnd(); drawTimer(true, fin); return; } nextSeg(); return; }
     paintTimer();
   }
   if(awake && !T && Date.now() - lastActivity > 20 * 60 * 1000) keepAwake(false);
 }
 setInterval(tick, 250);
 document.addEventListener("visibilitychange", function(){ if(!document.hidden && awake && !NATIVE){ awake = false; keepAwake(true); } });
-function drawTimer(justDone){
+function drawTimer(justDone, fin){
   var bar = document.getElementById("tbar");
   if(!T){
     document.body.classList.remove("tbig");
-    if(justDone){ bar.hidden = false; bar.className = "tbar done"; bar.innerHTML = ""; bar.appendChild(h("div", {class:"tbar-in"}, [h("div", {class:"tl", text:"Отдых окончен — к подходу"}), h("div", {class:"tc", text:"0:00"}), h("div", {class:"tb"}, [h("button", {type:"button", text:"Закрыть", onclick:function(){ bar.hidden = true; }})])])); setTimeout(function(){ if(!T) bar.hidden = true; }, 6000); }
+    if(justDone){ bar.hidden = false; bar.className = "tbar done"; bar.innerHTML = ""; bar.appendChild(h("div", {class:"tbar-in"}, [h("div", {class:"tl", text:(fin && fin.head === "Переход" ? "Начинай" : "Отдых окончен — к подходу") + (fin && fin.next ? ": " + fin.next : "")}), h("div", {class:"tc", text:"0:00"}), h("div", {class:"tb"}, [h("button", {type:"button", text:"Закрыть", onclick:function(){ bar.hidden = true; }})])])); setTimeout(function(){ if(!T) bar.hidden = true; }, 6000); }
     else bar.hidden = true;
     return;
   }
@@ -721,7 +723,7 @@ function drawTimer(justDone){
   bar.hidden = false; bar.className = "tbar " + (T.mode === "rest" ? "" : (T.seg.k || "")) + (big ? " big" : ""); bar.innerHTML = "";
   document.body.classList.toggle("tbig", big);
   if(T.mode === "rest"){
-    bar.appendChild(h("div", {class:"tbar-in"}, [h("div", {class:"tl", text:"Отдых" + (T.next ? " → " + T.next : "")}), h("div", {class:"tc", id:"t-clock", text:"0:00"}), h("div", {class:"tt", text:""}), h("div", {class:"prog"}, [h("i", {id:"t-prog"})]),
+    bar.appendChild(h("div", {class:"tbar-in"}, [h("div", {class:"tl", text:T.head + (T.next ? " → " + T.next : "")}), h("div", {class:"tc", id:"t-clock", text:"0:00"}), h("div", {class:"tt", text:T.why}), h("div", {class:"prog"}, [h("i", {id:"t-prog"})]),
       h("div", {class:"tb"}, [h("button", {type:"button", text:"−15 с", onclick:function(){ adjustRest(-15); }}), h("button", {type:"button", text:"+15 с", onclick:function(){ adjustRest(15); }}), h("button", {type:"button", text:"Пропустить", onclick:function(){ stopTimer(); }})])]));
     paintTimer(); return;
   }
@@ -792,6 +794,7 @@ function rirGuide(open){
     "🟡 <b>2</b> — последние 1–2 повтора заметно медленнее, техника та же. 🟠 <b>1</b> — последний «ползёт», но чистый.",
     "🔴 <b>0</b> — повтор встал или техника поплыла. В программе так не делаем: при грыже отказ под весом — лишний риск.",
     "<b>Как приложение подстраивается.</b> После каждой жимовой тренировки оно сравнивает записанные подходы с планом. Тяжелее плана или недобор — максимум для расчёта снижается на 2,5–5 кг. Заметно легче — растёт на 2,5 кг, не больше чем на ступень за тренировку. Подсобка: вес на сегодня — из оценки максимума по прошлой записи; было легко — +1 шаг, недобор — вес не растёт. Внутри тренировки следующий подход поправляется по предыдущему.",
+    "<b>Отдых тоже подстраивается.</b> Отметил запас 0–1 или недобрал повторы — следующий отдых длиннее: +1 мин в базовых упражнениях, +30 с в изоляции и после пары суперсета.",
     "Не отмечаешь запас — веса считаются по повторам, но точность ниже."
   ])], open);
 }
@@ -970,7 +973,7 @@ function warmSec(day){
     lines.push("<b>" + nameOf(it0) + ":</b> " + ramp + ".");
   }
   lines.push(S.profile.feet === "bench" ? "Жим — стопы на скамье (выбрано в профиле)." : "Жим — стопы на полу, ягодицы на скамье, без высокого моста.");
-  lines.push("Отдых: базовые жимы 3–5 мин, подсобка 1–2 мин. Таймер запускается сам после отметки подхода.");
+  lines.push("Отдых таймер ставит сам после отметки подхода: жим — по весу подхода, от 3 мин на 70–77,5% до 5 мин от 92,5%; вариации жима 2,5–3 мин; базовая подсобка 2 мин; изоляция 1,5 мин. В суперсете — 20 с на переход и не меньше 2 мин после пары. Подход дался тяжело (запас 0–1 или недобор) — следующий отдых длиннее.");
   return det("Разминка — 10 мин", [plain(lines)], false, "sec-warm");
 }
 
@@ -979,7 +982,7 @@ function exSec(day){
   items.forEach(function(it, idx){
     var next = items[idx + 1], startsPair = next && next.ss;
     if(it.ss && box){ box.appendChild(exCard(day, it, idx)); box = null; return; }
-    if(startsPair){ box = h("div", {class:"group"}, [h("div", {class:"gl", text:"Суперсет: подход первого — сразу подход второго, отдых после пары"})]); box.appendChild(exCard(day, it, idx)); wrap.appendChild(box); return; }
+    if(startsPair){ box = h("div", {class:"group"}, [h("div", {class:"gl", text:pairText(day, it, idx, next, idx + 1)})]); box.appendChild(exCard(day, it, idx)); wrap.appendChild(box); return; }
     box = null;
     wrap.appendChild(h("div", {class:"group single"}, [exCard(day, it, idx)]));
   });
@@ -1019,7 +1022,7 @@ function exCard(day, it, idx){
   if(meta.length) card.appendChild(h("div", {class:"hint", text:meta.join(" · ")}));
   if(it.n) card.appendChild(h("div", {class:"ex-note", text:it.n}));
   if(it.alt) card.appendChild(h("div", {class:"ex-note", text:it.alt}));
-  if(it.rest) card.appendChild(h("div", {class:"ex-rest", text:"Отдых: " + (it.rest >= 120 ? Math.round(it.rest / 60) + (it.role === "main" ? "–5" : "") + " мин" : it.rest > 60 ? "1–2 мин" : it.ex === "bench_speed" ? "не больше 1 мин" : "1 мин") + (startsPairOf(day, idx) ? " — после пары" : "")}));
+  if(it.rest && !it.ss && !startsPairOf(day, idx)) card.appendChild(h("div", {class:"ex-rest", text:restText(day, it, idx)}));
   if(it.role === "note"){ card.appendChild(h("p", {class:"small", text:e.how || ""})); return card; }
   if(it.role === "core"){ card.appendChild(coreBlock(day, it, idx)); card.appendChild(h("details", {}, [h("summary", {text:"Почему вместо пресса"}), h("div", {}, [h("p", {text:it.why || ""})])])); return card; }
   var allDone = rows.every(function(_, i){ return arr[i] && arr[i].done; });
@@ -1076,25 +1079,104 @@ function setRow(day, it, idx, i, row, arr, rows){
   return h("div", {class:cls}, kids);
 }
 
+/* ================= отдых между подходами =================
+   Жим — по весу подхода (2–5 мин), вариации жима 2,5–3 мин, базовая подсобка 2 мин, изоляция 1,5 мин.
+   Тяжёлый подход (запас 0–1 или недобор) — +1 мин в базовых, +30 с в изоляции.
+   Суперсет: 20 с на переход (30 с после штанги), после пары — чтобы у каждого упражнения между его подходами прошёл
+   его обычный отдых, но не меньше 2 мин; пара на одни мышцы — обычный отдых + 1 мин. Та же модель — rest_* в tools/appdata.py. */
+function setRest(day, it, idx, i){
+  var row = allRows(day, it, idx)[i] || {}, p = row.p, b = it.rest || 0;
+  if(row.extra) return 300;
+  if(it.rk === "bm" && p != null){ b = p >= 92.5 ? 300 : p >= 87.5 ? 240 : p >= 80 ? 210 : p >= 70 ? 180 : 120; if(it.ex === "sling") b = Math.min(b, 240); }
+  else if(it.rk === "p2" && p != null) b = p >= 70 ? 180 : 150;
+  return b;
+}
+function workSec(it, row){ var r = (row && row.r) || 8, x = r <= 5 ? 24 : r <= 10 ? 36 : r <= 15 ? 48 : 60; return it.per ? x * 2 : x; }
+function hardSet(row, st){ return !!(st && st.done && ((st.q != null && st.q <= 1) || (st.r != null && row && row.r && st.r < row.r))); }
+function up15(x){ return Math.ceil(x / 15) * 15; }
+function pairRest(day, a, aIdx, ai, b, bIdx, bi){
+  var ra = setRest(day, a, aIdx, ai), rb = setRest(day, b, bIdx, bi), tr = b.tr || 20;
+  if(b.ps === "same") return up15(Math.max(ra, rb) + 60);
+  return up15(Math.max(ra - tr - workSec(b, allRows(day, b, bIdx)[bi]), rb - tr - workSec(a, allRows(day, a, aIdx)[ai]), 120));
+}
+function fmtRest(sec){ var m = Math.floor(sec / 60), r = sec % 60; return !m ? r + " с" : !r ? m + " мин" : r === 30 ? m + ",5 мин" : m + ":" + String(r).padStart(2, "0"); }
+function restRange(vals){
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if(lo === hi) return fmtRest(lo);
+  var a = fmtRest(lo), b = fmtRest(hi);
+  return (/ мин$/.test(a) && / мин$/.test(b) ? a.replace(" мин", "") : a) + "–" + b;
+}
+function restText(day, it, idx){
+  if(it.ex === "bench_speed") return "Отдых не больше 1 мин — по гайду";
+  var vals = allRows(day, it, idx).map(function(_, i){ return setRest(day, it, idx, i); });
+  return "Отдых " + restRange(vals) + (it.rk === "bm" && Math.max.apply(null, vals) > Math.min.apply(null, vals) ? " — чем тяжелее подход, тем дольше" : "") + ". Тяжёлый подход — таймер добавит";
+}
+function pairText(day, a, aIdx, b, bIdx){
+  var n = Math.min(allRows(day, a, aIdx).length, allRows(day, b, bIdx).length), vals = [];
+  for(var i = 0; i < n; i++) vals.push(pairRest(day, a, aIdx, i, b, bIdx, i));
+  return "Суперсет: подход первого → " + (b.tr || 20) + " с на переход → подход второго → отдых " + restRange(vals) + " после пары" +
+    (b.ps === "same" ? ". Оба упражнения на одни мышцы — отдых длиннее" : "") + ". Каждое упражнение отдыхает ≈ " + fmtRest(pairGap(day, a, aIdx, b, bIdx, 0, vals[0])) + " между своими подходами";
+}
+function pairGap(day, a, aIdx, b, bIdx, i, rest){
+  var tr = b.tr || 20, g = Math.min(tr + workSec(b, allRows(day, b, bIdx)[i]), workSec(a, allRows(day, a, aIdx)[i]) + tr) + rest;
+  return Math.round(g / 15) * 15;
+}
+function restWhy(it, row, sec){
+  if(it.ex === "bench_speed") return "скоростной жим — по гайду не больше минуты";
+  if(row && row.extra) return "попытка на максимум — 5 мин";
+  if(it.rk === "bm" && row && row.p != null) return "подход " + fkg(row.p) + "% — " + fmtRest(sec);
+  if(it.rk === "p2" && row && row.p != null) return "вариация жима " + fkg(row.p) + "% — " + fmtRest(sec);
+  return (sec >= 120 ? "базовое упражнение" : "изоляция") + " — " + fmtRest(sec);
+}
+function nextLine(day, it, idx, row){
+  var s = suggest(day, it, idx, row), tr = allRows(day, it, idx)[row] || {};
+  return nameOf(it) + (s && s.w != null ? " · " + (toolOf(it) === "db" ? "2×" : "") + fkg(s.w) + " кг" : "") + (tr.r ? " × " + tr.r : "");
+}
+/* первый подход нового базового упражнения — с разминочным */
+function warmLine(day, it, idx, row){
+  if(row !== 0 || it.rk === "bm" || (it.rest || 0) < 120 || ["gv", "bw", "farewell"].indexOf(it.role) >= 0) return "";
+  var s = suggest(day, it, idx, 0), tool = toolOf(it);
+  if(!s || s.w == null || s.w <= 0) return "сначала 1 лёгкий разминочный подход × 8";
+  var st = stepOf(tool), w = Math.max(tool === "bar" || tool === "pl" ? 20 : st, Math.round(s.w * 0.5 / st) * st);
+  return "сначала разминочный ≈ " + (tool === "db" ? "2×" : "") + fkg(w) + " кг × 8";
+}
 function markDone(day, it, idx, i, w, r, q){
   var rr = rec(day.d), k = setKey(it, idx), arr = rr.sets[k] || (rr.sets[k] = []);
   arr[i] = {w:w, r:r, q:q, done:true, t:Date.now()};
   save(key(day.d)); touch();
-  var items = itemsOf(day), rows = allRows(day, it, idx);
+  var items = itemsOf(day), rows = allRows(day, it, idx), hard = hardSet(rows[i], arr[i]);
   var partner = items[idx + 1] && items[idx + 1].ss ? {it:items[idx + 1], idx:idx + 1} : null;
   if(partner){
-    var parr = rr.sets[setKey(partner.it, partner.idx)] || [], pr = firstOpen(parr, rowsOf(partner.it));
-    if(!(parr[pr] && parr[pr].done)){ toast("Сразу: " + nameOf(partner.it)); render(true); highlight(day.d, partner.idx); return; }
+    var parr = rr.sets[setKey(partner.it, partner.idx)] || [], pr = firstOpen(parr, allRows(day, partner.it, partner.idx));
+    if(!(parr[pr] && parr[pr].done)){
+      var tr = partner.it.tr || 20;
+      startRest(tr, nameOf(it), nextLine(day, partner.it, partner.idx, pr), {head:"Переход", noWatch:true, why:"суперсет: " + tr + " с — перейти и взять вес, потом сразу подход"});
+      render(true); highlight(day.d, partner.idx); return;
+    }
   }
   var target = null;
   if(it.ss && items[idx - 1]){ var a = items[idx - 1], aarr = rr.sets[setKey(a, idx - 1)] || [], ar = firstOpen(aarr, rowsOf(a)); if(!(aarr[ar] && aarr[ar].done)) target = {it:a, idx:idx - 1, row:ar}; }
   if(!target){ var fo = firstOpen(arr, rows); if(!(arr[fo] && arr[fo].done)) target = {it:it, idx:idx, row:fo}; }
   if(!target){ for(var j = idx + 1; j < items.length; j++){ var x = items[j]; if(x.role === "note") continue; var xa = rr.sets[setKey(x, j)] || [], xr = firstOpen(xa, allRows(day, x, j)); if(!(xa[xr] && xa[xr].done)){ target = {it:x, idx:j, row:xr}; break; } } }
+  var rest = setRest(day, it, idx, i), head = "Отдых", why = restWhy(it, rows[i], rest);
+  /* второе упражнение суперсета: отдых после пары */
+  var A1 = it.ss && items[idx - 1] ? items[idx - 1] : null, ai = -1;
+  if(A1){ var a1 = rr.sets[setKey(A1, idx - 1)] || [], a1rows = allRows(day, A1, idx - 1); ai = i < a1rows.length && a1[i] && a1[i].done ? i : -1; if(ai >= 0 && hardSet(a1rows[ai], a1[ai])) hard = true; }
+  var inPair = !!(A1 && ai >= 0), add = 0;
+  if(inPair){ rest = pairRest(day, A1, idx - 1, ai, it, idx, i); head = "Отдых после пары"; }
+  if(hard){ add = inPair ? 30 : (rest >= 120 ? 60 : 30); rest = Math.min(300, rest + add); }
+  if(inPair) why = (it.ps === "same" ? "пара на одни мышцы — отдых длиннее" : "после двух подходов подряд") + " · каждое упражнение отдыхает ≈ " + fmtRest(pairGap(day, A1, idx - 1, it, idx, i, rest)) + " между своими подходами";
+  if(add) why = "+" + fmtRest(add) + ": подход был тяжёлым · " + why;
   var nextTxt = "упражнения закончены";
-  if(target){ var s = suggest(day, target.it, target.idx, target.row), trow = allRows(day, target.it, target.idx)[target.row] || {};
-    nextTxt = nameOf(target.it) + (s && s.w != null ? " · " + (toolOf(target.it) === "db" ? "2×" : "") + fkg(s.w) + " кг" : "") + (trow.r ? " × " + trow.r : ""); }
-  var rest = it.rest || 0;
-  if(rest > 0) startRest(rest, nameOf(it), nextTxt);
+  if(target){
+    nextTxt = nextLine(day, target.it, target.idx, target.row);
+    if(target.it !== it && target.it !== A1){
+      var need = Math.min(180, setRest(day, target.it, target.idx, target.row));
+      if(need > rest){ rest = need; why = "переход к новому упражнению — " + fmtRest(rest); }
+      var wl = warmLine(day, target.it, target.idx, target.row); if(wl) why += " · " + wl;
+    }
+  }
+  if(rest > 0 && target) startRest(rest, nameOf(it), nextTxt, {head:head, why:why});
   render(true);
   if(target) highlight(day.d, target.idx);
 }
@@ -1389,6 +1471,7 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Отдых пересмотрен.</b> Жим — по весу подхода: 3 мин на 70–77,5%, 3,5 — на 80–85%, 4 — на 87,5–90%, 5 — от 92,5%. Базовая подсобка — 2 мин, изоляция — 1,5. В суперсете между упражнениями 20 с на переход, после пары — не меньше 2 мин, так что каждое упражнение отдыхает около 3 мин между своими подходами; пара на одни мышцы (тяги по гайду) — 3 мин. Тяжёлый подход — следующий отдых длиннее. Тренировка стала в среднем на 9 минут дольше.",
     "<b>Домашние упражнения — одной кнопкой «Старт».</b> Таймер сам ведёт весь блок: время приготовиться, смена стороны, отдых между подходами и переход к следующему упражнению. Крупный экран видно с пола, «Пауза», «Назад» и «Дальше» — под рукой, сделанные упражнения отмечаются сами. Кнопка «Назад» телефона сначала ставит паузу.",
     "Записи версии 6.0 переносятся в новую раскладку сами."
   ])]));

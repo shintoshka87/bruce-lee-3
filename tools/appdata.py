@@ -162,8 +162,120 @@ ENG = {
     'cs_db_row': 34, 'leg_ext': 75, 'leg_curl': 60, 'goblet_box': 36, 'split_db': 20, 'hipthrust': 120,
     'cg_bench': 0.90 * 105, 'mg_bench': 0.95 * 105, 'wg_bench': 0.95 * 105, 'incl_bench': 0.80 * 105, 'ohp_seat': 0.60 * 105,
 }
+# REST и est_minutes ниже — прежняя модель времени. По ней собрана раскладка дней (переезды упражнений и «по желанию»),
+# поэтому её не трогаем: состав и порядок упражнений не меняются, записи остаются на своих местах.
+# Таймер отдыха и минуты на экране считаются по новой модели (rest_of, rest_set, pair_rest) — та же логика, что restPlan в app.html.
 REST = {'main': 180, 'test': 240, 'pct': 150, 'dbpct': 120, 'acc': 90, 'own': 120, 'gv': 90, 'bw': 60, 'farewell': 60, 'core': 0, 'note': 0,
         'sq': 150}
+
+# ------------------------------------------------------------------ отдых между подходами
+# Жим лёжа — по весу подхода: до 70% — 2 мин, 70–77,5% — 3, 80–85% — 3,5, 87,5–90% — 4, от 92,5% и попытки — 5 мин.
+# Вариации жима по % — 2,5–3 мин. Базовая подсобка (жимы гантелей, тяги, подтягивания, ноги) — 2 мин. Изоляция — 1,5 мин.
+# Тяжёлый подход (запас 0–1 или недобор) — следующий отдых длиннее: +1 мин в базовых, +30 с в изоляции (считает приложение).
+# Суперсет: 20 с на переход (30 с после штанги), после пары — столько, чтобы у каждого упражнения между его подходами
+# прошло не меньше его обычного отдыха, но не меньше 2 мин; пара на одни мышцы (тяга + тяга по гайду) — отдых обычный + 1 мин.
+BW_REST = {'cg_pushups': 90, 'neg_pullups': 120, 'box_squat': 75, 'bw_squat': 75, 'rdl': 75, 'bb_curl_empty': 60, 'hyper': 60, 'hyper_w': 60}
+CMP_LOW = {'squat', 'kb_squat', 'dl'}
+MUSCLE = {'BM': 'push', 'P2': 'push', 'FLY': 'push', 'TRI': 'tri', 'DELT': 'delt', 'ARM': 'arm', 'PULL': 'pull', 'LOW': 'leg',
+          'CORE': 'core', 'NOTE': 'note'}
+OVERLAP = {frozenset(['push', 'tri']), frozenset(['push', 'delt']), frozenset(['pull', 'arm'])}
+PAIR_MIN = 120
+
+
+def rest_of(k):
+    """База отдыха после подхода (с) и тип пересчёта по весу подхода: 'bm' — жим, 'p2' — вариации жима по %."""
+    ex, role, prm = MAP[k]
+    c = CAT[k]
+    if k == 'bench_speed':
+        return 60, None  # по гайду — не больше минуты
+    if role in ('main', 'test'):
+        return 180, 'bm'
+    if role == 'pct':
+        return (120, None) if c == 'TRI' else (180, 'p2')
+    if role == 'dbpct':
+        return 150, None
+    if role in ('own', 'gv'):
+        return 120, None
+    if role == 'bw':
+        return BW_REST.get(k, 75), None
+    if role == 'acc':
+        return (120 if c in ('P2', 'PULL') or k in CMP_LOW else 90), None
+    return 0, None  # прощание с залом, пресс, заметки
+
+
+def rest_set(k, p=None):
+    b, rk = rest_of(k)
+    if rk == 'bm' and p is not None:
+        b = 120 if p < 70 else 180 if p < 80 else 210 if p < 87.5 else 240 if p < 92.5 else 300
+        if k == 'sling':
+            b = min(b, 240)
+    elif rk == 'p2' and p is not None:
+        b = 150 if p < 70 else 180
+    return b
+
+
+def same_muscles(ka, kb):
+    a, b = MUSCLE[CAT[ka]], MUSCLE[CAT[kb]]
+    return a == b or frozenset([a, b]) in OVERLAP
+
+
+def trans_of(ka):
+    return 30 if MAP[ka][1] in ('main', 'test', 'pct', 'dbpct') else 20
+
+
+def work_s(k, r):
+    s = 24 if r <= 5 else 36 if r <= 10 else 48 if r <= 15 else 60
+    return s * (2 if MAP[k][2].get('per') else 1)
+
+
+def up15(x):
+    return int(-(-x // 15) * 15)
+
+
+def pair_rest(ka, pa, ra, kb, pb, rb):
+    """Отдых после пары суперсета, с."""
+    a, b, tr = rest_set(ka, pa), rest_set(kb, pb), trans_of(ka)
+    if same_muscles(ka, kb):
+        return up15(max(a, b) + 60)
+    return up15(max(a - tr - work_s(kb, rb), b - tr - work_s(ka, ra), PAIR_MIN))
+
+
+def _rows(e):
+    if 'P' in e:
+        return [(p, r) for p, r, n in e['P'] for _ in range(n)]
+    if 'W' in e:
+        return [(None, e['W'][0])] * e['W'][1]
+    if 'B' in e:
+        return [(None, e['B'][0])] * e['B'][1]
+    return []
+
+
+def est_minutes2(us):
+    """Длительность по новой модели отдыха: разминка 8 мин, подводящие к жиму 8 мин, подходы, переходы и отдых по таймерам."""
+    t = 8 * 60 + (8 * 60 if any(CAT[e['k']] == 'BM' for u in us for e in u) else 0)
+    for u in us:
+        c, k = CAT[u[0]['k']], u[0]['k']
+        if c == 'CORE':
+            t += 360
+        elif c == 'NOTE':
+            t += 300
+        elif k == 'farewell':
+            t += 600
+        elif len(u) == 1:
+            t += 90 + sum(work_s(k, r) + rest_set(k, p) for p, r in _rows(u[0]))
+        else:
+            a, b = u[0], u[1]
+            ra, rb = _rows(a), _rows(b)
+            t += 120
+            for i in range(max(len(ra), len(rb))):
+                if i < len(ra) and i < len(rb):
+                    t += work_s(a['k'], ra[i][1]) + trans_of(a['k']) + work_s(b['k'], rb[i][1]) + \
+                        pair_rest(a['k'], ra[i][0], ra[i][1], b['k'], rb[i][0], rb[i][1])
+                elif i < len(ra):
+                    t += work_s(a['k'], ra[i][1]) + rest_set(a['k'], ra[i][0])
+                else:
+                    t += work_s(b['k'], rb[i][1]) + rest_set(b['k'], rb[i][0])
+    return t / 60
 
 
 def map_item(e):
@@ -191,7 +303,9 @@ def map_item(e):
     it.update({k: v for k, v in prm.items() if k != 'rest'})
     if e.get('opt'):
         it['opt'] = 1
-    it['rest'] = prm.get('rest', REST[role])
+    it['rest'], rk = rest_of(key)
+    if rk:
+        it['rk'] = rk
     if role == 'farewell':
         it['name'] = '«Прощание с залом»: 50 подтягиваний'
     if key == 'hyper_w' and 'P' in it:  # «20x10x3» в гайде — это 20 кг × 10 × 3
@@ -478,13 +592,17 @@ def program():
             days = {}
             for dk, us in (('a', A), ('b', B)):
                 items = [map_item(e) for e in _flat(us)]
-                for it in items:
+                for j, it in enumerate(items):
                     if test and dk == 'b':
                         it['dl'] = 1
                     if 'wide' in it:
                         it['wide']['cap'] = 60 if gi == 1 else 70
-                full = int(5 * round(est_minutes(us) / 5))
-                core = int(5 * round(est_minutes([u for u in us if not (u[0].get('opt') or MAP[u[0]['k']][2].get('opt'))]) / 5))
+                    if it.get('ss') and j > 0:  # суперсет: переход к второму упражнению и тип пары
+                        it['tr'] = trans_of(items[j - 1]['src'])
+                        if same_muscles(items[j - 1]['src'], it['src']):
+                            it['ps'] = 'same'
+                full = int(5 * round(est_minutes2(us) / 5))
+                core = int(5 * round(est_minutes2([u for u in us if not (u[0].get('opt') or MAP[u[0]['k']][2].get('opt'))]) / 5))
                 days[dk] = {'items': items, 'deload': test and dk == 'b', 'test': any(it['role'] == 'test' for it in items), 'mins': full}
                 if core < full:
                     days[dk]['minsCore'] = core
