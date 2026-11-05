@@ -245,7 +245,7 @@ function gDays(gi){ var a = 0; for(var i = 0; i < gi; i++) a += G[i].weeks; retu
 /* ================= хранение ================= */
 var LS = "bl6-app-v1", LS5 = "bl5-app-v1", LS4 = "bl4-app-v1";
 var LAYOUT = 3; /* 1 — 6.0 (три дня гайда), 2 — 6.1.19 (две силовые), 3 — 6.1.20 (в силовой Б добавлена тяга) */
-var S = {v:6, profile:{start:"", startOk:false, max100:"105", max150:"", max200:"", mode:"adapt", feet:"floor", rhr:"", age:"39", hrmax:"", bw:"", stepDb:2, stepMc:5, htRef:"120", sound:true, watch:"rest", squat:"split"}, days:{}, body:[]};
+var S = {v:6, profile:{start:"", startOk:false, max100:"105", max150:"", max200:"", mode:"adapt", feet:"floor", rhr:"", age:"39", hrmax:"", bw:"", stepDb:2, stepMc:5, htRef:"120", sound:true, watch:"rest", screen:"on", squat:"split"}, days:{}, body:[]};
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 var MIGRATED = false;
@@ -626,7 +626,10 @@ function keepAwake(on){
   if(!on && wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
 }
 var lastActivity = Date.now();
-function touch(){ lastActivity = Date.now(); keepAwake(true); }
+/* «Гаснет как обычно»: в зале экран не держим — Huawei Health в режиме «на одном устройстве» молчит, пока экран телефона включён.
+   Домашние блоки и кардио по таймеру экран держат всегда: там надо смотреть на экран. */
+function screenWanted(){ return S.profile.screen !== "sys" || !!(T && T.mode === "seq"); }
+function touch(){ lastActivity = Date.now(); keepAwake(screenWanted()); }
 
 /* ================= таймеры ================= */
 var T = null;
@@ -921,7 +924,7 @@ function renderDay(day){
     }
     var startBtn = h("button", {type:"button", class:"btn big", text:r.done ? "День отмечен ✓" : "Начать тренировку", onclick:function(){
       touch(); var el = document.getElementById("sec-warm") || document.getElementById("sec-ex"); if(el){ if(el.tagName === "DETAILS") el.open = true; el.scrollIntoView({block:"start", behavior:"smooth"}); }
-      toast("Экран не будет гаснуть во время тренировки"); }});
+      toast(S.profile.screen === "sys" ? "Экран гаснет как обычно — конец отдыха придёт на часы" : "Экран не будет гаснуть во время тренировки"); }});
     top.push(startBtn);
   }
   card.appendChild(h("div", {class:"day-top"}, top));
@@ -1388,10 +1391,10 @@ function field(id, label, value, onchange, attrs, note){
   inp.addEventListener("change", function(){ onchange(inp.value); });
   return h("div", {class:"field"}, [h("label", {for:id, text:label}), inp, note ? h("small", {text:note}) : null]);
 }
-function selectField(id, label, value, opts, onchange){
+function selectField(id, label, value, opts, onchange, note){
   var s = h("select", {id:id}); opts.forEach(function(o){ s.appendChild(h("option", {value:o[0], text:o[1]})); }); s.value = String(value);
   s.addEventListener("change", function(){ onchange(s.value); });
-  return h("div", {class:"field"}, [h("label", {for:id, text:label}), s]);
+  return h("div", {class:"field"}, [h("label", {for:id, text:label}), s, note ? h("small", {text:note}) : null]);
 }
 var RED_FLAGS = [
   "<b>Срочно, в тот же день — в приёмное отделение:</b> онемение в промежности, вокруг ануса, на внутренней поверхности бёдер; затруднённое начало мочеиспускания, задержка или недержание мочи или кала; новые нарушения эрекции; слабость в обеих ногах.",
@@ -1440,17 +1443,32 @@ function renderProfile(app){
   var watchCard = h("div", {class:"card"}, [h("h3", {text:"Сигналы и часы"}),
     h("div", {class:"fields"}, [
       selectField("p-sound", "Звук на телефоне", P.sound ? "1" : "0", [["1","Включён"],["0","Выключен"]], function(v){ P.sound = v === "1"; save("settings"); }),
-      NATIVE ? selectField("p-watch", "Уведомления на часы", P.watch, [["rest","Конец отдыха и конец таймеров"],["all","Плюс каждая смена отрезка"],["off","Выключены"]], function(v){ P.watch = v; save("settings"); }) : null
+      NATIVE ? selectField("p-watch", "Уведомления на часы", P.watch, [["rest","Конец отдыха и конец таймеров"],["all","Плюс каждая смена отрезка"],["off","Выключены"]], function(v){ P.watch = v; save("settings"); }) : null,
+      selectField("p-screen", "Экран в зале", P.screen === "sys" ? "sys" : "on", [["on","Не гаснет"],["sys","Гаснет как обычно"]], function(v){ P.screen = v; save("settings"); keepAwake(screenWanted()); }, "«Гаснет как обычно» — телефон в кармане, конец отдыха приходит на часы. Домашние блоки и кардио по таймеру экран держат всегда")
     ])]);
   if(NATIVE){
+    watchCard.appendChild(h("p", {class:"small", text:"Две проверки. Часы должны завибрировать в обеих — так же они будут вибрировать в конце отдыха."}));
     watchCard.appendChild(h("div", {class:"row"}, [
-      h("button", {type:"button", class:"btn", text:"Проверить сигнал (через 5 с)", onclick:function(){ alertAt(9, Date.now() + 5000, "Проверка сигнала", "Если это видно на часах — всё настроено"); toast("Через 5 секунд придёт уведомление"); }}),
+      h("button", {type:"button", class:"btn", text:"1. Экран включён — через 5 с", onclick:function(){ alertAt(9, Date.now() + 5000, "Проверка: экран включён", "Если это видно на часах — сигнал дойдёт и при включённом экране"); toast("Не гаси экран: через 5 с часы должны завибрировать"); }}),
+      h("button", {type:"button", class:"btn", text:"2. Экран выключен — через 20 с", onclick:function(){ alertAt(9, Date.now() + 20000, "Проверка: экран выключен", "Если это видно на часах — сигнал дойдёт и из кармана"); toast("Сейчас погаси экран кнопкой питания: через 20 с часы должны завибрировать"); }})
+    ]));
+    watchCard.appendChild(plain([
+      "<b>Молчат только в проверке 1</b> — в Huawei Health уведомления идут на одно устройство: пока экран телефона включён, часы молчат. Включи уведомления на обоих устройствах и выключи «без звука при использовании телефона» и «умные уведомления» (пункт 1 ниже). Или поставь выше «Экран в зале — гаснет как обычно».",
+      "<b>Молчат в обеих или приходят с опозданием</b> — пройди пункты 1–4."
+    ]));
+    var exact = true; try{ exact = NATIVE.exactAlarmsAllowed(); }catch(e){}
+    if(!exact) watchCard.appendChild(h("div", {class:"row"}, [h("p", {class:"small grow", text:"Точные сигналы выключены системой — уведомление будет опаздывать. Разреши «Будильники и напоминания»."}), h("button", {type:"button", class:"btn sm", text:"Разрешить", onclick:function(){ try{ NATIVE.openExactAlarmSettings(); }catch(e){} }})]));
+    watchCard.appendChild(h("ol", {class:"plain"}, [
+      "<b>Huawei Health → Устройства → часы → Уведомления:</b> уведомления включены, «Брюс Ли» отмечен. Там же режим уведомлений — на обоих устройствах; «без звука при использовании телефона» и «умные уведомления» — выключить.",
+      "<b>Huawei Health → Устройства:</b> потяни экран вниз и включи защиту подключения часов — Health не будет терять связь в фоне.",
+      "<b>Realme: Настройки → Батарея</b> → управление батареей приложений (в некоторых версиях — внутри настроек энергосбережения) — для Huawei Health и для «Брюс Ли»: разрешить фоновую активность и автозапуск. Без этого телефон «замораживает» приложения при выключенном экране, и уведомления опаздывают.",
+      "<b>Уведомления «Брюс Ли» на телефоне</b> — разрешены, со звуком, на экране блокировки (кнопка ниже). На часах выключи «Не беспокоить» и «Сон»."
+    ].map(function(t){ return h("li", {html:t}); })));
+    watchCard.appendChild(h("div", {class:"row"}, [
       h("button", {type:"button", class:"btn ghost", text:"Уведомления приложения", onclick:function(){ try{ NATIVE.openNotificationSettings(); }catch(e){} }}),
       h("button", {type:"button", class:"btn ghost", text:"Батарея и автозапуск", onclick:function(){ try{ NATIVE.openBatterySettings(); }catch(e){} }})
     ]));
-    var exact = true; try{ exact = NATIVE.exactAlarmsAllowed(); }catch(e){}
-    if(!exact) watchCard.appendChild(h("div", {class:"row"}, [h("p", {class:"small grow", text:"Точные сигналы выключены системой — уведомление может опаздывать на минуту."}), h("button", {type:"button", class:"btn sm", text:"Разрешить", onclick:function(){ try{ NATIVE.openExactAlarmSettings(); }catch(e){} }})]));
-    watchCard.appendChild(plain(["В Huawei Health: Устройства → часы → Уведомления → отметь это приложение.", "В настройках телефона: Приложения → это приложение → Батарея → разреши работу в фоне и автозапуск."]));
+    watchCard.appendChild(h("p", {class:"small muted", text:"Сигнал ставится как будильник — так Android доставляет его точно даже из кармана. Поэтому во время отдыха в строке состояния виден значок будильника."}));
   } else watchCard.appendChild(h("p", {class:"small", text:"В веб-версии сигнал звучит только на телефоне. Уведомления на часы отправляет Android-приложение."}));
   panel.appendChild(watchCard);
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Красные флаги"}), plain(RED_FLAGS)]));
@@ -1471,6 +1489,7 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Сигналы на часы — точнее.</b> Конец отдыха ставится как будильник: Android доставляет его вовремя и при выключенном экране, а не откладывает на минуты. В профиле — две проверки сигнала (экран включён и выключен), настройка «Экран в зале» и что включить в Huawei Health и на телефоне.",
     "<b>Отдых пересмотрен.</b> Жим — по весу подхода: 3 мин на 70–77,5%, 3,5 — на 80–85%, 4 — на 87,5–90%, 5 — от 92,5%. Базовая подсобка — 2 мин, изоляция — 1,5. В суперсете между упражнениями 20 с на переход, после пары — не меньше 2 мин, так что каждое упражнение отдыхает около 3 мин между своими подходами; пара на одни мышцы (тяги по гайду) — 3 мин. Тяжёлый подход — следующий отдых длиннее. Тренировка стала в среднем на 9 минут дольше.",
     "<b>Домашние упражнения — одной кнопкой «Старт».</b> Таймер сам ведёт весь блок: время приготовиться, смена стороны, отдых между подходами и переход к следующему упражнению. Крупный экран видно с пола, «Пауза», «Назад» и «Дальше» — под рукой, сделанные упражнения отмечаются сами. Кнопка «Назад» телефона сначала ставит паузу.",
     "Записи версии 6.0 переносятся в новую раскладку сами."

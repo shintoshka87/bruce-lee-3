@@ -35,7 +35,7 @@ public class AlertReceiver extends BroadcastReceiver {
         Notification.Builder b;
         if (Build.VERSION.SDK_INT >= 26) {
             b = new Notification.Builder(c, MainActivity.CHANNEL_ID);
-            b.setTimeoutAfter(90_000);
+            b.setTimeoutAfter(120_000);
         } else {
             b = new Notification.Builder(c);
             b.setPriority(Notification.PRIORITY_HIGH);
@@ -47,6 +47,9 @@ public class AlertReceiver extends BroadcastReceiver {
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
+                .setShowWhen(true)
+                .setWhen(System.currentTimeMillis())
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setCategory(Notification.CATEGORY_ALARM)
                 .setContentIntent(content);
 

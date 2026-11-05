@@ -161,6 +161,13 @@ public class MainActivity extends Activity {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    /** Что открыть, если нажать на значок будильника в строке состояния. */
+    PendingIntent showIntent() {
+        Intent i = new Intent(this, MainActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
     boolean exactAllowed() {
         if (Build.VERSION.SDK_INT < 31) return true;
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -174,14 +181,21 @@ public class MainActivity extends Activity {
             if (am == null) return;
             PendingIntent p = alertIntent(MainActivity.this, id, title, text);
             long at = (long) atMs;
+            // Сигнал ставится как будильник: такой будильник система не сдвигает и будит телефон из энергосбережения.
+            // Обычный «точный» сигнал при выключенном экране Android пропускает не чаще 7 раз в час,
+            // остальные откладывает до окна обслуживания — отсюда опоздания на минуты и пропуски.
             try {
                 if (exactAllowed()) {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+                    am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, showIntent()), p);
                 } else {
                     am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
                 }
             } catch (SecurityException e) {
-                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+                try {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+                } catch (SecurityException e2) {
+                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+                }
             }
         }
 
