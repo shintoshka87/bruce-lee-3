@@ -1112,7 +1112,7 @@ function exCard(day, it, idx){
   if(it.role === "test"){
     var res = testInfo(day.g);
     card.appendChild(h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"＋ Ещё попытка +2,5 кг", onclick:function(){ var x = rec(day.d); x.extra[k] = (x.extra[k] || 0) + 1; save(key(day.d)); refreshCard(day, it, idx); }}),
-      res ? h("span", {class:"small", html:"Результат: <b>" + fkg(res.w) + " кг</b>" + (day.g < 2 ? " — это максимум для гайда " + G[day.g + 1].id : "")}) : null]));
+      res ? h("span", {class:"small", html:"Результат: <b>" + fkg(res.w) + " кг</b>" + (day.g < G.length - 1 ? " — это максимум для этапа «" + G[day.g + 1].name + "»" : "")}) : null]));
   }
   var tech = [];
   if(e.page) tech.push(h("p", {class:"hint", text:e.page}));
