@@ -1095,7 +1095,7 @@ function exCard(day, it, idx){
   card.appendChild(h("div", {class:"ex-h"}, [h("span", {class:"lab", text:String(idx + 1)}), h("span", {class:"ex-name"}, [nameOf(it)].concat(tags).concat([it.per ? h("span", {class:"pg", text:it.per}) : null])), h("span", {class:"sets", text:setsText(it)})]));
   var meta = [];
   if(it.orig) meta.push("вместо: " + it.orig);
-  var gtxt = guideText(it); if(gtxt && !it.dl) meta.push("по гайду: " + gtxt);
+  var gtxt = guideText(it); if(gtxt && !it.dl) meta.push((/_add$/.test(it.src || "") ? "план: " : "по гайду: ") + gtxt);  /* добавленное к гайду — не «по гайду» */
   if(it.dl) meta.push("разгрузка после проходки");
   if(meta.length) card.appendChild(h("div", {class:"hint", text:meta.join(" · ")}));
   if(it.n) card.appendChild(h("div", {class:"ex-note", text:it.n}));
