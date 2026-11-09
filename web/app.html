@@ -422,7 +422,8 @@ function itemsOf(day){
   var base = DATA.prog[G[day.g].id][day.w - 1][day.gd].items;
   if(S.profile.squat !== "wide" || !base.some(function(it){ return it.wide; })) return base;
   var k = day.g + ":" + day.w + ":" + day.gd;
-  return WIDE[k] || (WIDE[k] = base.map(function(it){ if(!it.wide) return it; var x = Object.assign({}, it, it.wide); delete x.wide; delete x._rows; return x; }));
+  var rnd = G[day.g].round || 0;  /* гайд 150 по кругу: потолок широкого приседа растёт по кругам — 60, 65, 70 кг */
+  return WIDE[k] || (WIDE[k] = base.map(function(it){ if(!it.wide) return it; var x = Object.assign({}, it, it.wide); delete x.wide; delete x._rows; if(rnd > 1) x.cap = Math.min(70, (x.cap || 60) + 5 * (rnd - 1)); return x; }));
 }
 function rowsOf(it){
   if(it._rows) return it._rows;
@@ -634,7 +635,7 @@ function sqSuggest(day, it, idx, i, st){
   else if(s.sets.every(function(x, k){ var q = s.rows[k]; return !q || (x && x.done && x.r != null && x.r >= q.r && (x.q == null || x.q >= 3)); })){
     w = lw + 2.5; why = "день " + s.d + ": " + fkg(lw) + " кг с запасом 3+ — +2,5 кг. Спина на следующий день болела сильнее 3 из 10 — не прибавляй, впиши прошлый вес";
   } else { w = lw; why = "как в день " + s.d + ": запас был меньше 3"; }
-  if(w > cap){ w = cap; why += " · потолок " + fkg(cap) + " кг в этом гайде"; }
+  if(w > cap){ w = cap; why += " · потолок " + fkg(cap) + " кг " + (G[day.g].round ? "в этом круге" : "в этом гайде"); }
   if(yellow){ w = floorTo(w * 0.9, st); why += " · жёлтый день −10%"; }
   return {w:w, why:why};
 }
@@ -1414,7 +1415,7 @@ function accTable(t){
 function bodyCard(){
   var bw = h("input", {type:"text", inputmode:"decimal", id:"b-w", placeholder:"кг"}), ws = h("input", {type:"text", inputmode:"decimal", id:"b-ws", placeholder:"см"}), dtI = h("input", {type:"date", id:"b-dt"}); dtI.value = isoToday();
   var add = h("button", {type:"button", class:"btn", text:"Добавить", onclick:function(){ var w = pnum(bw.value), x = pnum(ws.value); if(w == null && x == null){ toast("Впиши вес или талию"); return; } S.body.push({date:dtI.value || isoToday(), w:w, waist:x}); S.body.sort(function(a, b){ return a.date < b.date ? -1 : 1; }); save("body"); render(true); }});
-  var card = h("div", {class:"card"}, [h("h3", {text:"Вес и талия"}), h("p", {class:"small muted", text:"Вес — утром натощак, смотри на среднее за 7 дней; талия — раз в неделю утром на уровне пупка. Ориентир: −0,3–0,6 кг в неделю."}),
+  var card = h("div", {class:"card"}, [h("h3", {text:"Вес и талия"}), h("p", {class:"small muted", text:"Вес — утром натощак, смотри на среднее за 7 дней; талия — раз в неделю утром на уровне пупка. Ориентир: −0,3–0,5 кг в неделю — так уходит жир, а мышцы остаются."}),
     h("div", {class:"fields"}, [h("div", {class:"field"}, [h("label", {for:"b-dt", text:"Дата"}), dtI]), h("div", {class:"field"}, [h("label", {for:"b-w", text:"Вес, кг"}), bw]), h("div", {class:"field"}, [h("label", {for:"b-ws", text:"Талия, см"}), ws])]), h("div", {class:"row"}, [add])]);
   var wpts = S.body.filter(function(b){ return b.w != null; }).map(function(b, i){ return {d:i + 1, v:b.w, lbl:b.date}; });
   if(wpts.length > 1) card.appendChild(lineChart(wpts, "кг", true));
@@ -1521,7 +1522,7 @@ function renderProfile(app){
     h("p", {class:"small muted", text:"Проходка — последний цикл гайда. Её результат сам становится максимумом следующего гайда, если поле выше пустое."})]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Присед в силовой А"}),
     h("div", {class:"fields"}, [selectField("p-squat", "Гайды 150 и 200", P.squat || "split", [["split", "Сплит-присед"], ["wide", "Широкий присед"]], function(v){ P.squat = v; save("settings"); render(true); })]),
-    h("p", {class:"small", html:"<b>Широкий присед</b> — на скамью высотой до колена; гриф специальный для приседа или низко на трапециях, не на шее. Вес: старт 40 кг, +2,5 кг за цикл, если все повторы шли с запасом 3+; потолок 60 кг в гайде 150 и 70 кг в гайде 200."}),
+    h("p", {class:"small", html:"<b>Широкий присед</b> — на скамью высотой до колена; гриф специальный для приседа или низко на трапециях, не на шее. Вес: старт 40 кг, +2,5 кг за цикл, если все повторы шли с запасом 3+; потолок 60 кг в гайде 150 и 70 кг в гайде 200; в гайде 150 по кругу — 60, 65 и 70 кг по кругам."}),
     h("p", {class:"small muted", text:"Включай, только если сейчас ничего не отдаёт в ногу и боль в спине не больше 2 из 10; лучше, чтобы план видел невролог или реабилитолог. Появилось что-то в ноге или на следующий день боль выше 3 из 10 — сразу обратно на сплит-присед. Записи у двух вариантов раздельные."})]));
   ZT = null; var Z = zoneTable();
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Пульс и тело"}),
@@ -1588,6 +1589,9 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Ноги в силовой Б.</b> В гайдах 150 и 200 — суперсет «сгибание ног сидя + разгибание ног», 3 × 12 с запасом 2, перед руками: в гайдах ноги получали только сплит-присед, а задняя поверхность бедра — почти ничего. Сгибание ног теперь везде сидя: лёжа поясница прогибается. Силовая Б стала длиннее на 10–15 минут.",
+    "<b>Широкий присед по кругам:</b> потолок 60 кг в первом круге гайда 150, 65 — во втором, 70 — с третьего.",
+    "<b>Темп похудения — 0,3–0,5 кг в неделю.</b> Быстрее уходят уже и мышцы: при дефиците больше ~500 ккал в день мышцы перестают расти.",
     "<b>Гайд 150 по кругу.</b> С ближайшей силовой А — гайд 150 от твоего текущего максимума, после проходки — заново от нового. По умолчанию 3 круга, около 10 месяцев: ориентир, чтобы вернуть 125–130 кг. Записи по гайду 100 остаются в истории.",
     "<b>Конец отдыха — 5 вибраций на часах.</b> Сигнал повторяется каждые 4 с, пока не возьмёшь телефон (коснёшься экрана или откроешь приложение). В профиле можно выбрать 1, 3 или 5 вибраций или «пока не возьму телефон» — до минуты.",
     "<b>Сигналы на часы — точнее.</b> Конец отдыха ставится как будильник: Android доставляет его вовремя и при выключенном экране, а не откладывает на минуты. В профиле — две проверки сигнала (экран включён и выключен), настройка «Экран в зале» и что включить в Huawei Health и на телефоне.",
