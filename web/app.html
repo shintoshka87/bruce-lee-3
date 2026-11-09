@@ -240,7 +240,8 @@ var GCOL = ["var(--g0)", "var(--g1)", "var(--g2)"];
 var NATIVE = (typeof window.Android !== "undefined" && window.Android) ? window.Android : null;
 var TOOL = {bench:"bar", bench_speed:"bar", bench_neg:"bar", board:"bar", board15:"bar", sling:"bar"};
 function toolOf(it){ if(it.role === "gv" || it.role === "farewell") return "gv"; return TOOL[it.ex] || (EX[it.ex] && EX[it.ex].wt) || "bw"; }
-function gDays(gi){ var a = 0; for(var i = 0; i < gi; i++) a += G[i].weeks; return {from:a * 8 + 1, to:(a + G[gi].weeks) * 8}; }
+function gDays(gi){ var a = 0; for(var i = 0; i < gi; i++) a += (G[i].len || G[i].weeks); return {from:a * 8 + 1, to:(a + (G[gi].len || G[gi].weeks)) * 8}; }
+function gcol(gi){ var g = G[gi]; return GCOL[g && g.col != null ? g.col : gi] || GCOL[0]; }
 
 /* ================= хранение ================= */
 var LS = "bl6-app-v1", LS5 = "bl5-app-v1", LS4 = "bl4-app-v1";
@@ -303,6 +304,66 @@ function rec(d){ var k = key(d); if(!S.days[k]) S.days[k] = {done:false, note:""
 function persist(){ lsSet(LS, JSON.stringify(S)); }
 var MOVED = migrateLayout(); if(MOVED) persist();
 
+/* ================= план =================
+   Стандартный — гайды 100 → 150 → 200 (DATA.days). «Гайд 150 по кругу»: всё до цикла from остаётся как было,
+   с цикла from — гайд 150 заново столько кругов, сколько выбрано; проходка каждого круга — максимум следующего.
+   Так советует сам Сарычев: прошёл гайд, сделал проходку — и заново от нового максимума. */
+var DG = DATA.guides, DDAYS = DATA.days;
+function dStart(id){ var a = 0; for(var i = 0; i < DG.length; i++){ if(DG[i].id === id) return a; a += DG[i].weeks; } return 0; }
+function applyPlan(){
+  var p = S.profile.plan;
+  if(!p || p.type !== "150"){
+    G = DG.map(function(g, i){ return {id:g.id, key:g.id, name:g.name, weeks:g.weeks, len:g.weeks, col:i}; });
+    DAYS = DDAYS;
+  } else {
+    var st = [], days = [], c = 0, rounds = Math.max(1, Math.min(6, (p.rounds | 0) || 3)), pre = Math.max(0, (p.from | 0) - 1), a = 0;
+    /* аэробная база: если гайд 100 пройден меньше чем на 8 циклов, первые 4 кардио круга 1 — зона 2 (45 → 60 мин), как в гайде 100, интервалы — потом */
+    var base = pre < 8;
+    var push = function(stage, src){
+      var gi = st.length; st.push(stage);
+      for(var w = 1; w <= stage.len; w++){
+        c++;
+        for(var i = 0; i < 8; i++){
+          var o = DDAYS[(src + w - 2) * 8 + i], x = Object.assign({}, o, {d:(c - 1) * 8 + i + 1, c:c, g:gi, w:w});
+          if(base && stage.round === 1 && w <= 4 && o.kind === "cardio"){
+            var z = DDAYS[(dStart("100") + 2 * w - 2) * 8 + i];
+            x.cardio = z.cardio; x.title = z.title; x.why = "Перед интервалами — месяц спокойной зоны 2: сердце и сосуды привыкают к нагрузке. Интервалы 4 × 4 начнутся с 5-го цикла круга."; x.red = z.red;
+            if(z.alt != null) x.alt = z.alt; else delete x.alt;
+          }
+          days.push(x);
+        }
+      }
+    };
+    DG.forEach(function(g, i){ var n = Math.max(0, Math.min(g.weeks, pre - a)); if(n) push({id:g.id, key:g.id, name:g.name, weeks:g.weeks, len:n, col:i}, a + 1); a += g.weeks; });
+    var w150 = DG.filter(function(g){ return g.id === "150"; })[0].weeks, s150 = dStart("150");
+    for(var r = 1; r <= rounds; r++) push({id:"150", key:r === 1 ? "150" : "150r" + r, name:"Гайд 150 · круг " + r, weeks:w150, len:w150, col:1, round:r}, s150 + 1);
+    G = st; DAYS = days;
+  }
+  N = DAYS.length; NCYC = N / 8; CACHE = {}; WIDE = {};
+}
+/* ближайшая силовая А: сегодня, если это силовая А и записей ещё нет, иначе — следующий цикл */
+function nearestA(){
+  var t = todayIdx(); if(!t) return 1;
+  var day = DAYS[t - 1], r = S.days[key(t)];
+  var fresh = !r || (!r.done && !Object.keys(r.sets || {}).some(function(k){ return (r.sets[k] || []).some(function(x){ return x && x.done; }); }));
+  return day.i === 0 && fresh ? day.c : day.c + 1;
+}
+function recordsFrom(d0){
+  return Object.keys(S.days).some(function(k){
+    var d = parseInt(k.slice(1), 10), r = S.days[k]; if(!(d >= d0) || !r) return false;
+    if(r.done) return true;
+    return Object.keys(r.sets || {}).some(function(sk){ return (r.sets[sk] || []).some(function(x){ return x && x.done; }); });
+  });
+}
+/* 6.1.26: по твоей просьбе — гайд 150 по кругу, 3 круга, с ближайшей силовой А. Один раз; вернуть можно в профиле, пока нет записей по новому плану */
+if(!S.profile.planSet){
+  S.profile.planSet = 1;
+  var fromA = nearestA();
+  if(fromA <= dStart("150") + 1){ S.profile.plan = {type:"150", from:fromA, rounds:3}; S.profile.planNote = 1; }
+  persist();
+}
+applyPlan();
+
 /* облако (только в веб-версии внутри Claude) */
 var CLOUD = {db:null, uid:null, timers:{}, chains:{}};
 function save(docId){
@@ -340,7 +401,7 @@ function connectCloud(){
           if(!have.settings) pushDoc("settings");
           if(!have.body && S.body.length) pushDoc("body");
         }
-        CACHE = {}; persist(); if(!busyTyping()) render(true);
+        applyPlan(); CACHE = {}; persist(); if(!busyTyping()) render(true);
       }, function(){ CLOUD.db = null; });
     });
   }).catch(function(){});
@@ -396,11 +457,12 @@ function testInfo(gi){
   return (CACHE[k] = best);
 }
 function guideBase(gi){
-  var man = pnum(S.profile["max" + G[gi].id]);
-  if(gi === 0) return man ? {v:man, why:"из профиля"} : {v:105, why:"стартовая оценка"};
+  var man = pnum(S.profile["max" + (G[gi].key || G[gi].id)]);
   if(man) return {v:man, why:"из профиля"};
-  var t = testInfo(gi - 1); if(t) return {v:t.w, why:"проходка " + G[gi - 1].name};
-  var prev = tmState(gi - 1).end; return {v:prev, why:"проходки ещё нет — итог гайда " + G[gi - 1].id};
+  if(gi === 0){ var m0 = pnum(S.profile.max100); return m0 ? {v:m0, why:"из профиля"} : {v:105, why:"стартовая оценка"}; }
+  var t = testInfo(gi - 1); if(t) return {v:t.w, why:"проходка: " + G[gi - 1].name};
+  var prev = tmState(gi - 1).end, pg = G[gi - 1];
+  return {v:prev, why:(pg.len < pg.weeks ? "максимум на момент перехода с гайда " + pg.id : "проходки ещё нет — итог: " + pg.name)};
 }
 function tmState(gi){
   var k = "tm" + gi; if(k in CACHE) return CACHE[k];
@@ -861,25 +923,34 @@ function renderDayTab(app){
     kids.push(row);
     app.appendChild(h("div", {class:"card alert", style:"margin-top:10px"}, kids));
   }
+  if(S.profile.planNote && S.profile.plan){
+    var pd = dateOf((S.profile.plan.from - 1) * 8 + 1);
+    app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [
+      h("p", {class:"small", html:"<b>Теперь гайд 150 по кругу</b> — " + (S.profile.plan.rounds || 3) + " круга с цикла " + S.profile.plan.from + (pd ? ", силовая А " + fmtDate(pd, true) : "") +
+        ". Веса — от твоего максимума для расчёта на момент перехода; после каждой проходки — от нового. Кардио первые 4 цикла — спокойная зона 2, интервалы 4 × 4 — с 5-го. Сколько кругов и как вернуть гайды 100 → 150 → 200 — в профиле, раздел «Программа»."}),
+      h("button", {type:"button", class:"btn ghost sm", text:"Понятно", onclick:function(){ S.profile.planNote = 0; save("settings"); render(true); }})]));
+  }
   var n = dayNum();
   if(n != null && n < 1) app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", text:"До старта " + (1 - n) + " дн. Пока — прогулки, тройка Макгилла по вечерам и сон."})]));
   var tc = t ? DAYS[t - 1].c : null;
-  app.appendChild(h("div", {class:"ruler"}, Array.apply(null, Array(NCYC)).map(function(_, k){
+  app.appendChild(h("div", {class:"ruler", style:"grid-template-columns:repeat(" + NCYC + ",minmax(0,1fr))"}, Array.apply(null, Array(NCYC)).map(function(_, k){
     var c = k + 1, first = DAYS[(c - 1) * 8], gi = first.g, isTest = first.w === G[gi].weeks;
-    return h("button", {type:"button", class:"cell" + (c === tc ? " today" : "") + (tc && c < tc ? " past" : ""), style:"--pc:" + GCOL[gi], "aria-current":String(c === day.c), "aria-label":"Цикл " + c + ", " + G[gi].name + ", неделя " + first.w,
+    return h("button", {type:"button", class:"cell" + (c === tc ? " today" : "") + (tc && c < tc ? " past" : ""), style:"--pc:" + gcol(gi), "aria-current":String(c === day.c), "aria-label":"Цикл " + c + ", " + G[gi].name + ", неделя " + first.w,
       onclick:function(){ selectDay((c - 1) * 8 + 1); }}, [isTest ? h("span", {class:"tst"}) : null]);
   })));
-  app.appendChild(h("div", {class:"legend"}, G.map(function(g, i){ return h("span", {style:"--c:" + GCOL[i], text:g.name}); }).concat([h("span", {style:"--c:var(--heavy)", text:"проходка"})])));
+  var seenG = {}, leg = [];
+  G.forEach(function(g, i){ if(seenG[g.id]) return; seenG[g.id] = 1; leg.push(h("span", {style:"--c:" + gcol(i), text:"Гайд " + g.id + (g.round ? " по кругу" : "")})); });
+  app.appendChild(h("div", {class:"legend"}, leg.concat([h("span", {style:"--c:var(--heavy)", text:"проходка"})])));
   var gi = day.g;
   var hc = heartCycle(day.c);
-  app.appendChild(h("div", {class:"weekhead"}, [h("div", {class:"row"}, [h("h2", {text:"Цикл " + day.c}), chip(G[gi].name, GCOL[gi], true), h("span", {class:"muted small", text:"неделя " + day.w + " из " + G[gi].weeks + (day.w === G[gi].weeks ? " · проходка и разгрузка" : "")})]),
+  app.appendChild(h("div", {class:"weekhead"}, [h("div", {class:"row"}, [h("h2", {text:"Цикл " + day.c}), chip(G[gi].name, gcol(gi), true), h("span", {class:"muted small", text:"неделя " + day.w + " из " + G[gi].weeks + (day.w === G[gi].weeks ? " · проходка и разгрузка" : "")})]),
     h("p", {class:"small muted", html:"❤ Сердце за цикл: <b>" + hc.done + "</b> из " + hc.plan + " мин" + (hc.bonus ? " (" + hc.bonus + " — по желанию)" : "") + " · интервалы считаются вдвойне"})]));
   var rota = h("div", {class:"rota"});
   for(var i = 0; i < 8; i++){
     (function(x){
       var r = S.days[key(x.d)], dt = dateOf(x.d), sl = DATA.slots[x.i];
       var k = x.kind === "gym" ? (x.test ? "проходка" : x.deload ? "разгрузка" : x.gd === "a" ? "сила А" : "сила Б") : x.kind === "cardio" ? (DATA.cardios[x.cardio].kind === "int" ? "4 × 4" : "кардио") : x.kind === "rest" ? "отдых" : "смена";
-      rota.appendChild(h("button", {type:"button", class:"dayb " + x.kind + (r && r.done ? " done" : "") + (x.d === t ? " today" : ""), style:"--pc:" + (x.test ? "var(--heavy)" : GCOL[x.g]), "aria-current":String(x.d === day.d), "aria-label":sl.name + ", " + x.title, onclick:function(){ selectDay(x.d); }}, [
+      rota.appendChild(h("button", {type:"button", class:"dayb " + x.kind + (r && r.done ? " done" : "") + (x.d === t ? " today" : ""), style:"--pc:" + (x.test ? "var(--heavy)" : gcol(x.g)), "aria-current":String(x.d === day.d), "aria-label":sl.name + ", " + x.title, onclick:function(){ selectDay(x.d); }}, [
         h("span", {class:"k", html:"<b>" + sl.short + "</b>" + k}), dt ? h("span", {class:"dt", text:dt.getDate() + "." + String(dt.getMonth() + 1).padStart(2, "0")}) : h("span", {class:"n", text:String(x.d)})]));
     })(DAYS[(day.c - 1) * 8 + i]);
   }
@@ -910,9 +981,9 @@ function heartCycle(c){
   return t;
 }
 function renderDay(day){
-  var col = day.test ? "var(--heavy)" : GCOL[day.g], dt = dateOf(day.d), r = rec(day.d), sl = DATA.slots[day.i];
+  var col = day.test ? "var(--heavy)" : gcol(day.g), dt = dateOf(day.d), r = rec(day.d), sl = DATA.slots[day.i];
   var card = h("article", {class:"day", style:"--pc:" + col});
-  var chips = [chip(G[day.g].name, GCOL[day.g], true), chip("неделя " + day.w)];
+  var chips = [chip(G[day.g].name, gcol(day.g), true), chip("неделя " + day.w)];
   if(day.test) chips.push(chip("Проходка", "var(--heavy)"));
   if(day.deload) chips.push(chip("Разгрузка", "var(--dl)"));
   var top = [h("div", {class:"big"}, [h("h2", {text:sl.name}), h("span", {class:"muted small", text:(dt ? fmtDate(dt, true) + " · " : "") + "день " + day.d + " · цикл " + day.c})]),
@@ -1295,7 +1366,7 @@ function renderProgress(app){
   var t = todayIdx() || UI.day, gi = DAYS[t - 1].g, T0 = tmAt(Math.min(N, t + 1));
   if(DAYS[Math.min(N, t + 1) - 1].g !== gi) T0 = {tm:tmState(gi).end, base:tmState(gi).base};
   var kp = [h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Максимум для расчёта"}), h("b", {text:fkg(T0.tm) + " кг"}), h("span", {class:"tiny muted", text:G[gi].name + " · старт " + fkg(T0.base.v)})])];
-  G.forEach(function(g, i){ var tr = testInfo(i); kp.push(h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Проходка " + g.name}), h("b", {text:tr ? fkg(tr.w) + " кг" : "—"}), h("span", {class:"tiny muted", text:tr ? "день " + tr.d : "в конце гайда"})])); });
+  G.forEach(function(g, i){ if(g.len < g.weeks) return; var tr = testInfo(i); kp.push(h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Проходка " + g.name}), h("b", {text:tr ? fkg(tr.w) + " кг" : "—"}), h("span", {class:"tiny muted", text:tr ? "день " + tr.d : "в конце гайда"})])); });
   var doneDays = Object.keys(S.days).filter(function(k){ return S.days[k].done; }).length;
   kp.push(h("div", {class:"kpi"}, [h("span", {class:"small muted", text:"Дней отмечено"}), h("b", {text:String(doneDays)}), h("span", {class:"tiny muted", text:"из " + N})]));
   var hw = 0; for(var hd = Math.max(1, t - 7); hd <= t; hd++) hw += heartDay(DAYS[hd - 1]).done;
@@ -1406,6 +1477,28 @@ var RED_FLAGS = [
   "<b>Немедленно прекратить нагрузку:</b> давящая боль в груди, необычная одышка, перебои в сердце, головокружение или предобморочное состояние.",
   "<b>Боль во время упражнения:</b> 0–2 из 10 — продолжаем; 3–4 — меньше вес или амплитуда; 5 и выше — упражнение прекращаем."
 ];
+/* программа: гайды 100 → 150 → 200 или гайд 150 по кругу */
+function planCard(){
+  var P = S.profile, plan = P.plan && P.plan.type === "150" ? P.plan : null;
+  var card = h("div", {class:"card"}, [h("h3", {text:"Программа"})]);
+  if(plan){
+    var d0 = (plan.from - 1) * 8 + 1, dt0 = dateOf(d0), t = todayIdx(), cur = t && G[DAYS[t - 1].g].round || 0;
+    card.appendChild(h("p", {class:"small", html:"<b>Гайд 150 по кругу</b> — с цикла " + plan.from + (dt0 ? " (" + fmtDate(dt0, true) + ")" : "") +
+      ". Круг — 13 циклов, около 3,5 месяца. Проходка в конце круга становится максимумом следующего: так советует сам Сарычев — прошёл гайд, сделал проходку и заново от нового максимума."}));
+    card.appendChild(h("div", {class:"fields"}, [selectField("p-rounds", "Сколько кругов", String(plan.rounds || 3), [["2", "2 — около 7 месяцев"], ["3", "3 — около 10 месяцев"], ["4", "4 — около 14 месяцев"], ["5", "5 — около 17 месяцев"]], function(v){
+      if(+v < cur){ toast("Уже идёт круг " + cur + " — меньше нельзя"); render(true); return; }
+      plan.rounds = +v; save("settings"); applyPlan(); render(true);
+    }, "Ориентир: вернуть 125–130 кг — около трёх кругов")]));
+    card.appendChild(recordsFrom(d0) ? h("p", {class:"small muted", text:"Вернуться к гайдам 100 → 150 → 200 уже нельзя: по новому плану есть записи."}) :
+      h("button", {type:"button", class:"btn ghost sm", text:"Вернуть гайды 100 → 150 → 200", onclick:function(){ P.plan = null; P.planNote = 0; save("settings"); applyPlan(); var x = todayIdx(); if(x) UI.day = x; render(true); toast("Вернул гайды 100 → 150 → 200"); }}));
+  } else {
+    card.appendChild(h("p", {class:"small", html:"<b>Гайды 100 → 150 → 200</b> подряд, " + NCYC + " циклов. Если твой максимум уже около сотни, тебе подходит гайд 150 — и по кругу, от нового максимума после каждой проходки."}));
+    card.appendChild(h("button", {type:"button", class:"btn sm", text:"Перейти на гайд 150 по кругу", onclick:function(){
+      var f = nearestA(); P.plan = {type:"150", from:f, rounds:3}; P.planNote = 1; save("settings"); applyPlan(); var x = todayIdx(); if(x) UI.day = x; render(true); toast("Гайд 150 по кругу — с цикла " + f);
+    }}));
+  }
+  return card;
+}
 function renderProfile(app){
   var P = S.profile;
   var panel = h("section", {class:"panel"}, [h("h2", {text:"Профиль и настройки"})]);
@@ -1415,14 +1508,16 @@ function renderProfile(app){
     hint ? h("div", {class:"row"}, [h("span", {class:"small muted grow", text:"По графику из версии 5 ближайший выходной — " + fmtDate(hint, true) + "."}), h("button", {type:"button", class:"btn sm", text:"Поставить", onclick:function(){ P.start = iso(hint); P.startOk = true; save("settings"); var t = todayIdx(); if(t) UI.day = t; render(true); }})]) : null,
     h("p", {class:"small muted", text:"Цикл — 8 дней: выходной 1 — силовая А (День 1 гайда и тяги из Дня 2), выходной 2 — кардио, две смены, выходной 3 — силовая Б (День 3, жим и ноги из Дня 2), выходной 4 — восстановление, две смены. Между силовыми всегда три дня. Неделя гайда = один цикл, весь путь 100 → 200 — 37 циклов, около 10 месяцев."})]));
   var t = todayIdx() || UI.day;
+  panel.appendChild(planCard());
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Максимум в жиме лёжа"}),
     h("div", {class:"fields"}, [
-      field("p-m100", "Гайд 100, кг", P.max100, function(v){ P.max100 = v; save("settings"); render(true); }, {inputmode:"decimal"}, "твоя оценка: 105"),
-      field("p-m150", "Гайд 150, кг", P.max150, function(v){ P.max150 = v; save("settings"); render(true); }, {inputmode:"decimal", placeholder:"авто"}, "пусто — по проходке гайда 100"),
-      field("p-m200", "Гайд 200, кг", P.max200, function(v){ P.max200 = v; save("settings"); render(true); }, {inputmode:"decimal", placeholder:"авто"}, "пусто — по проходке гайда 150"),
+    ].concat(G.map(function(g, i){
+      var note = i === 0 ? "твоя оценка: 105" : (G[i - 1].len < G[i - 1].weeks ? "пусто — максимум на момент перехода" : "пусто — по проходке: " + G[i - 1].name);
+      return field("p-m" + g.key, g.name + ", кг", P["max" + g.key], function(v){ P["max" + g.key] = v; save("settings"); render(true); }, {inputmode:"decimal", placeholder:i ? "авто" : null}, note);
+    })).concat([
       selectField("p-mode", "Как считать веса", P.mode, [["adapt", "Адаптивно"], ["strict", "Строго по гайду"]], function(v){ P.mode = v; save("settings"); render(true); }),
       selectField("p-feet", "Стопы в жиме", P.feet, [["floor", "На полу"], ["bench", "На скамье"]], function(v){ P.feet = v; save("settings"); render(true); })
-    ]),
+    ])),
     h("p", {class:"small", html:"Стопы на полу — ягодицы на скамье, без высокого моста; на скамье — моста нет совсем, это безопаснее для поясницы. Сейчас для расчёта: <b>" + fkg(tmAt(t).tm) + " кг</b>. <b>Адаптивно:</b> максимум гайда — стартовая точка; после каждой жимовой тренировки приложение сравнивает подходы с планом и поправляет его на 2,5–5 кг. <b>Строго по гайду:</b> как у Сарычева — весь гайд от одного максимума. Подсобка в обоих режимах считается по прошлой записи."}),
     h("p", {class:"small muted", text:"Проходка — последний цикл гайда. Её результат сам становится максимумом следующего гайда, если поле выше пустое."})]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Присед в силовой А"}),
@@ -1494,6 +1589,7 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Гайд 150 по кругу.</b> С ближайшей силовой А — гайд 150 от твоего текущего максимума, после проходки — заново от нового. По умолчанию 3 круга, около 10 месяцев: ориентир, чтобы вернуть 125–130 кг. Записи по гайду 100 остаются в истории.",
     "<b>Конец отдыха — 5 вибраций на часах.</b> Сигнал повторяется каждые 4 с, пока не возьмёшь телефон (коснёшься экрана или откроешь приложение). В профиле можно выбрать 1, 3 или 5 вибраций или «пока не возьму телефон» — до минуты.",
     "<b>Сигналы на часы — точнее.</b> Конец отдыха ставится как будильник: Android доставляет его вовремя и при выключенном экране, а не откладывает на минуты. В профиле — две проверки сигнала (экран включён и выключен), настройка «Экран в зале» и что включить в Huawei Health и на телефоне.",
     "<b>Отдых пересмотрен.</b> Жим — по весу подхода: 3 мин на 70–77,5%, 3,5 — на 80–85%, 4 — на 87,5–90%, 5 — от 92,5%. Базовая подсобка — 2 мин, изоляция — 1,5. В суперсете между упражнениями 20 с на переход, после пары — не меньше 2 мин, так что каждое упражнение отдыхает около 3 мин между своими подходами; пара на одни мышцы (тяги по гайду) — 3 мин. Тяжёлый подход — следующий отдых длиннее. Тренировка стала в среднем на 9 минут дольше.",
@@ -1536,7 +1632,7 @@ function importData(txt){
     if(mine){ var days = d.days || {}, L = (d.profile && d.profile.layout) || 1; if(L < 2) migrateDays(days); else if(L < LAYOUT) migrateRekey(days); S.profile = Object.assign(S.profile, d.profile || {}, {layout:LAYOUT}); Object.keys(days).forEach(function(k){ if(/^s\d{3}$/.test(k)) S.days[k] = days[k]; }); WIDE = {}; }
     else { ["rhr","age","hrmax","bw","stepDb","stepMc","sound","watch"].forEach(function(k){ if(d.profile[k] != null && d.profile[k] !== "") S.profile[k] = d.profile[k]; }); }
     if(d.body && d.body.length) S.body = d.body;
-    ZT = null; CACHE = {}; persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); }
+    applyPlan(); ZT = null; CACHE = {}; persist(); if(CLOUD.db){ Object.keys(S.days).forEach(pushDoc); pushDoc("settings"); pushDoc("body"); }
     toast(mine ? "Копия загружена" : "Из копии старой версии перенесены профиль и вес"); render();
   }catch(e){ toast("Не похоже на резервную копию"); }
 }
