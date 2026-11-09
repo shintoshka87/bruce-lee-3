@@ -483,7 +483,7 @@ function tmAt(d){
   return {tm:tm, base:st.base, log:log};
 }
 function benchVerdict(day, r, tm){
-  var miss = 0, est = null, lb = null, n = 0, sample = "";
+  var miss = 0, est = null, lb = null, n = 0, sample = "", near = false;
   itemsOf(day).forEach(function(it, idx){
     if(it.role !== "main" || it.ex !== "bench") return;
     var arr = r.sets[setKey(it, idx)] || [];
@@ -491,6 +491,7 @@ function benchVerdict(day, r, tm){
       var s = arr[i]; if(!s || !s.done || !s.w || s.r == null) return; n++;
       if(s.r < row.r) miss++;
       if(s.q == null) return;
+      if(s.q <= 1) near = true;
       if(s.q <= 3){ var e = e1(s.w, s.r, s.q); if(est == null || e > est){ est = e; sample = fkg(s.w) + " × " + s.r + ", запас " + s.q; } }
       else { var l = e1(s.w, s.r, 4); if(lb == null || l > lb){ lb = l; if(est == null) sample = fkg(s.w) + " × " + s.r + ", запас 4+"; } }
     });
@@ -501,7 +502,9 @@ function benchVerdict(day, r, tm){
   if(miss === 1) return {delta:-2.5, why:"недобор повторов в одном подходе"};
   if(est != null){
     if(est >= tm + 5 && !yellow) return {delta:2.5, why:sample + " → максимум ≈ " + fkg(r1(est)) + " кг, выше расчётного"};
-    if(est <= tm - 7.5) return {delta:-2.5, why:sample + " → максимум ≈ " + fkg(r1(est)) + " кг, ниже расчётного"};
+    /* вниз — только если хоть один подход был у предела (запас 0–1): отметки 2–3 на лёгких подходах занижают оценку на 10–20% */
+    if(est <= tm - 7.5) return near ? {delta:-2.5, why:sample + " → максимум ≈ " + fkg(r1(est)) + " кг, ниже расчётного"}
+      : {delta:0, why:sample + " — далеко от предела запас оценивается неточно, максимум не меняю. Было правда тяжело — отмечай 🟠 1 или 🔴 0"};
     return {delta:0, why:sample + " → максимум ≈ " + fkg(r1(est)) + " кг, всё по плану"};
   }
   if(lb != null && lb >= tm + 5 && !yellow) return {delta:2.5, why:"все подходы с запасом 4+ — расчётный максимум занижен"};
@@ -527,17 +530,66 @@ function sessE(s){
   s.sets.forEach(function(x, i){ if(!x || !x.done || !x.w || !x.r) return; var e = e1(x.w, x.r, x.q != null ? x.q : s.rir); if(best == null || e > best) best = e; });
   return best;
 }
-function accEst(ex, beforeD){
-  var k = "acc" + ex + ":" + beforeD; if(k in CACHE) return CACHE[k];
-  var ss = lastSessions(ex, beforeD, 2), res = null;
-  if(ss.length){
-    var E0 = sessE(ss[0]);
-    if(E0 != null){
-      if(ss[1]){ var E1 = sessE(ss[1]); if(E1) E0 = Math.max(E1 * 0.92, Math.min(E1 * 1.08, E0)); }
-      res = {est:E0, s:ss[0]};
+/* Оценка разового максимума подсобки идёт по всем тренировкам подряд и меняется только от того, что сделано иначе, чем план.
+   Раньше она каждый раз заново считалась от веса, уже округлённого вниз до шага гантелей или блока, и поэтому таяла: без отметок запаса
+   вес подсобки за круг падал на треть и больше.
+   Подсобка «на запас» (acc): сделал по плану с запасом как в цели или без отметки — оценка та же; взял больше, сделал больше повторов
+   или запас больше цели — растёт (до +8% за тренировку или до веса, который реально брал); запас меньше цели или недобор — снижается
+   (не больше −15% за раз). Жёлтый день оценку не трогает.
+   Жимы по % гайда (pct, dbpct): подходы далеко от предела, поэтому отметка запаса — только нижняя граница силы: оценка от неё растёт,
+   а снижается лишь после подхода у предела (запас 0–1) или недобора. rel — была ли такая надёжная запись. */
+function accPlanW(est, r, rir, st, tool){
+  var w = floorTo(est * pctAt(r + rir) / 100, st);
+  if(tool === "kb") w = Math.max(8, Math.min(32, Math.round(w / 4) * 4));
+  if(tool === "db") w = Math.max(st, w);
+  return w;
+}
+function exState(ex, beforeD){
+  var k = "ex" + ex + ":" + beforeD; if(k in CACHE) return CACHE[k];
+  var est = null, last = null, rel = false, marked = true;
+  for(var d = 1; d < beforeD; d++){
+    var day = DAYS[d - 1], r = S.days[key(d)]; if(day.kind !== "gym" || !r || !r.sets) continue;
+    var items = itemsOf(day);
+    for(var idx = 0; idx < items.length; idx++){
+      var it = items[idx]; if(it.ex !== ex || (it.role !== "acc" && it.role !== "pct" && it.role !== "dbpct")) continue;
+      var arr = r.sets[setKey(it, idx)] || [], rows = rowsOf(it);
+      if(!arr.some(function(x){ return x && x.done && x.w && x.r; })) break;
+      var sess = {d:d, it:it, sets:arr, rows:rows, rir:rirOf(it)}, tool = toolOf(it), st = stepOf(tool), yellow = r.color === "y", rir = sess.rir;
+      if(!est) est = (ENG[ex] || 0) * tmAt(d).tm / 105 || sessE(sess) || 0;
+      marked = arr.some(function(x){ return x && x.done && x.q != null; });
+      if(it.role === "acc" && est > 0){
+        var best = null, bq = null, below = false, maxUp = 1;
+        arr.forEach(function(x, j){
+          var row = rows[j]; if(!x || !x.done || !x.w || !x.r || !row) return;
+          var q = x.q != null ? (x.q >= 4 ? Math.max(4, rir) : x.q) : (x.r >= row.r ? rir : 0);
+          if(q < rir || x.r < row.r) below = true;
+          var base = accPlanW(est, row.r, rir, st, tool); if(!(base > 0)) return;
+          var ratio = x.w / base * pctAt(row.r + rir) / pctAt(x.r + q);
+          maxUp = Math.max(maxUp, x.w / base);
+          if(best == null || ratio > best){ best = ratio; bq = q; }
+        });
+        if(best != null && !yellow){
+          if(best > 1 + 1e-6) est *= Math.min(best, Math.max(1.08, maxUp));
+          else if(best < 1 - 1e-6 && (below || bq < 4)){ est *= Math.max(best, 0.85); rel = true; }
+        }
+      } else if(it.role !== "acc"){
+        var bestE = null, near = false;
+        arr.forEach(function(x, j){
+          var row = rows[j]; if(!x || !x.done || !x.w || !x.r || !row) return;
+          var miss = x.r < row.r; if(x.q == null && !miss) return;
+          var q = miss && x.q == null ? 0 : Math.min(x.q, 4);
+          if(q <= 1 || miss) near = true;
+          var e = e1(x.w, x.r, q); if(bestE == null || e > bestE) bestE = e;
+        });
+        if(bestE != null){
+          if(near){ if(!yellow){ est = Math.max(bestE, est * 0.85); rel = true; } }
+          else if(bestE > est) est = bestE;
+        }
+      }
+      last = sess; break;
     }
   }
-  return (CACHE[k] = res);
+  return (CACHE[k] = {est:est, s:last, rel:rel, marked:marked});
 }
 function sessLine(s){
   var x = s.sets.filter(function(q){ return q && q.done && q.w; })[0]; if(!x) return "";
@@ -547,13 +599,46 @@ function sessLine(s){
 function lastWorkW(s){ var x = s.sets.filter(function(q){ return q && q.done && q.w; }); return x.length ? x[0].w : null; }
 function sessMiss(s){ return s.sets.some(function(x, k){ return x && x.done && x.r != null && s.rows[k] && x.r < s.rows[k].r; }); }
 
+/* подход у предела (запас 0–1) или недобор — только такие записи надёжно говорят, что вес был велик */
+function nearLimit(s){ return sessMiss(s) || s.sets.some(function(x){ return x && x.done && x.q != null && x.q <= 1; }); }
+/* Ягодичный мост — % гайда от своего максимума. Оценка максимума идёт по всем тренировкам подряд:
+   старт — из профиля; взял больше плана (было легко — шаг добавился в тренировке, или вписал свой вес) — оценка растёт в той же пропорции;
+   подход у предела или недобор — оценка по этой записи, но не больше −15% за раз; отметки запаса 2+ оценку не снижают:
+   на 50–70% до предела далеко, и раньше такие отметки (даже «4+») роняли её на 8% за тренировку. */
+function ownState(ex, beforeD){
+  var k = "own" + ex + ":" + beforeD; if(k in CACHE) return CACHE[k];
+  var est = pnum(S.profile.htRef) || 120, last = null;
+  for(var d = 1; d < beforeD; d++){
+    var day = DAYS[d - 1], r = S.days[key(d)]; if(day.kind !== "gym" || !r || !r.sets) continue;
+    var items = itemsOf(day);
+    for(var idx = 0; idx < items.length; idx++){
+      var it = items[idx]; if(it.ex !== ex || it.role !== "own") continue;
+      var arr = r.sets[setKey(it, idx)] || [], rows = rowsOf(it);
+      if(!arr.some(function(x){ return x && x.done && x.w; })) break;
+      var s = {d:d, it:it, sets:arr, rows:rows, rir:rirOf(it)};
+      if(nearLimit(s)){ var e = sessE(s); if(e) est = Math.max(e, est * 0.85); }
+      else if(r.color !== "y"){
+        var up = 1;
+        arr.forEach(function(x, j){ var row = rows[j]; if(!x || !x.done || !x.w || !row || row.p == null) return; var plan = nearest(est * row.p / 100, 2.5); if(plan > 0 && x.w > plan + 1e-9) up = Math.max(up, x.w / plan); });
+        est = est * up;
+      }
+      last = s; break;
+    }
+  }
+  return (CACHE[k] = {est:est, s:last});
+}
+
 /* подстройка внутри тренировки — по уже сделанным подходам этого упражнения */
 function inSession(day, it, idx, i, st, rir){
   var arr = rec(day.d).sets[setKey(it, idx)] || [], rows = rowsOf(it), first = null, last = null, lastJ = -1;
   for(var j = 0; j < i; j++){ var s = arr[j]; if(s && s.done && s.w != null){ if(!first) first = {s:s, j:j}; last = s; lastJ = j; } }
   if(!last) return null;
   var row = rows[lastJ] || {}, miss = last.r != null && row.r != null && last.r < row.r;
-  if(miss || (last.q != null && last.q <= rir - 2)) return {w:floorTo(last.w * 0.9, st), why:"прошлый подход тяжелее цели — −10%"};
+  if(miss || (last.q != null && last.q <= rir - 2)){
+    /* по отметке запаса вес снижается один раз за упражнение (раньше — после каждого подхода, и блок с шагом 5 кг падал с 35 до 15 кг); после недобора — каждый раз */
+    if(!miss && last.w < first.s.w - 1e-9) return {w:last.w, why:"как прошлый подход"};
+    return {w:floorTo(last.w * 0.9, st), why:"прошлый подход тяжелее цели — −10%"};
+  }
   if(first.j === lastJ && last.q != null && last.q >= rir + 2) return {w:Math.round((last.w + st) * 100) / 100, why:"первый подход легче цели — +" + fkg(st) + " кг"};
   return {w:last.w, why:"как прошлый подход"};
 }
@@ -580,35 +665,40 @@ function suggest(day, it, idx, i){
   if(it.role === "gv" || it.role === "farewell") return gvSuggest(day, it, idx, i, st);
   if(it.role === "sq") return sqSuggest(day, it, idx, i, st);
   if(it.role === "bw" || it.role === "core" || it.role === "note") return null;
-  /* оценка разового максимума упражнения: по записям или стартовая */
-  var A = accEst(it.ex, day.d), est, src;
-  if(A){ est = A.est; src = "по " + sessLine(A.s) + " → 1ПМ ≈ " + fkg(Math.round(est)) + " кг"; }
-  else {
-    if(it.role === "own") est = (pnum(S.profile.htRef) || 120);
-    else est = (ENG[it.ex] || 0) * tm / 105;
-    src = "стартовая оценка — первый подход проверочный";
-  }
+  /* оценка разового максимума упражнения: стартовая, дальше — по записям (exState) */
+  var X = exState(it.ex, day.d), start = (ENG[it.ex] || 0) * tm / 105, est = X.est || start;
+  var src = X.s ? "по записям, последняя — " + sessLine(X.s) + " → 1ПМ ≈ " + fkg(Math.round(est)) + " кг" : "стартовая оценка — первый подход проверочный";
   var w2, why2;
-  if(it.role === "pct" && row.p != null){
-    var raw = tm * row.p / 100, capW = est * pctAt(row.r + 2) / 100;
-    if(raw > capW){ w2 = floorTo(capW, st); why2 = "в гайде " + fkg(row.p) + "% = " + fkg(nearest(raw, st)) + " кг, но это тяжелее «запаса 2» по твоей оценке (" + src + ")"; }
-    else { w2 = nearest(raw, st); why2 = fkg(row.p) + "% от " + fkg(tm) + " кг"; }
-  } else if(it.role === "dbpct" && row.p != null){
-    var rawd = tm * row.p / 100 / 2, capd = est * pctAt(row.r + 2) / 100;
-    w2 = floorTo(Math.min(rawd, capd), st); why2 = rawd > capd ? "в гайде " + fkg(row.p) + "% на пару гантелей, ограничено «запасом 2» (" + src + ")" : fkg(row.p) + "% от " + fkg(tm) + " кг на пару гантелей";
-  } else if(it.role === "own" && row.p != null){
-    w2 = nearest(est * row.p / 100, 2.5); why2 = fkg(row.p) + "% от оценки максимума " + fkg(Math.round(est)) + " кг" + (A ? " (" + sessLine(A.s) + ")" : " — стартовая, проверь первым подходом");
-  } else {
-    w2 = floorTo(est * pctAt(row.r + rir) / 100, st); why2 = src + "; сегодня " + row.r + " повт. с запасом " + (rir >= 4 ? rir + " (легко)" : rir);
-    if(A){
-      var lw = lastWorkW(A.s), lr = A.s.rows[0] ? A.s.rows[0].r : null;
-      if(lw != null && lr === row.r){ w2 = Math.min(w2, lw + st); w2 = Math.max(w2, lw - 2 * st); }
-      if(lw != null && sessMiss(A.s) && lr != null && lr <= row.r){ w2 = Math.min(w2, lw); why2 += " · в прошлый раз был недобор — вес не растёт"; }
+  if((it.role === "pct" || it.role === "dbpct") && row.p != null){
+    /* потолок «запас 2»: по стартовой оценке (доля от максимума жима), пока нет записи у предела; после неё — по записям */
+    var capE = X.rel ? est : Math.max(est, start), capSrc = capE > est + 1e-6 || !X.s ? "стартовая оценка для этого жима" : src;
+    if(it.role === "pct"){
+      var raw = tm * row.p / 100, capW = capE * pctAt(row.r + 2) / 100;
+      if(raw > capW){ w2 = floorTo(capW, st); why2 = "в гайде " + fkg(row.p) + "% = " + fkg(nearest(raw, st)) + " кг, но это тяжелее «запаса 2» по твоей оценке (" + capSrc + ")"; }
+      else { w2 = nearest(raw, st); why2 = fkg(row.p) + "% от " + fkg(tm) + " кг"; }
+    } else {
+      var rawd = tm * row.p / 100 / 2, capd = capE * pctAt(row.r + 2) / 100;
+      w2 = floorTo(Math.min(rawd, capd), st); why2 = rawd > capd ? "в гайде " + fkg(row.p) + "% на пару гантелей, ограничено «запасом 2» (" + capSrc + ")" : fkg(row.p) + "% от " + fkg(tm) + " кг на пару гантелей";
     }
+  } else if(it.role === "own" && row.p != null){
+    var O = ownState(it.ex, day.d);
+    w2 = nearest(O.est * row.p / 100, 2.5); why2 = fkg(row.p) + "% от оценки максимума " + fkg(Math.round(O.est)) + " кг" + (O.s ? " (" + sessLine(O.s) + ")" : " — стартовая, проверь первым подходом");
+  } else {
+    w2 = accPlanW(est, row.r, rir, st, tool); why2 = src + "; сегодня " + row.r + " повт. с запасом " + (rir >= 4 ? rir + " (легко)" : rir);
+    if(X.s && !X.marked) why2 += ". Запас в прошлый раз не отмечен — вес тот же: отмечай запас, по нему вес растёт";
   }
-  var a2 = inSession(day, it, idx, i, st, rir);
-  if(a2){ w2 = a2.w; why2 = a2.why; }
-  else if(yellow){ w2 = floorTo(w2 * 0.9, st); why2 += " · жёлтый день −10%"; }
+  if(it.role === "pct" || it.role === "dbpct"){
+    /* жимы по % гайда: у каждого подхода свой процент (в «лесенке» вес растёт от подхода к подходу), «было легко» — не повод прибавлять сверх гайда.
+       Раньше после первого отмеченного подхода все следующие шли «как прошлый» — лесенка 55–75% делалась одним весом. Вниз: недобор или запас 0 — −10%. */
+    var arrP = dr.sets[setKey(it, idx)] || [], hardP = false;
+    for(var jp = 0; jp < i; jp++){ var sp = arrP[jp], rp = rows[jp]; if(sp && sp.done && ((sp.r != null && rp && rp.r != null && sp.r < rp.r) || (sp.q != null && sp.q <= 0))) hardP = true; }
+    if(hardP){ w2 = floorTo(w2 * 0.9, st); why2 += " · прошлый подход шёл на пределе — −10%"; }
+    else if(yellow){ w2 = floorTo(w2 * 0.9, st); why2 += " · жёлтый день −10%"; }
+  } else {
+    var a2 = inSession(day, it, idx, i, st, rir);
+    if(a2){ w2 = a2.w; why2 = a2.why; }
+    else if(yellow){ w2 = floorTo(w2 * 0.9, st); why2 += " · жёлтый день −10%"; }
+  }
   if(tool === "kb") w2 = Math.max(8, Math.min(32, Math.round(w2 / 4) * 4));
   if(tool === "db") w2 = Math.max(st, w2);
   return {w:w2, why:why2};
@@ -617,7 +707,9 @@ function mainAdj(day, it, idx, i){
   var arr = rec(day.d).sets[setKey(it, idx)] || [], rows = rowsOf(it), row = rows[i], res = {mult:1, skip:false, why:""};
   for(var j = 0; j < i; j++){
     var s = arr[j], pr = rows[j]; if(!s || !s.done || !pr || pr.p == null) continue;
-    var miss = s.r != null && s.r < pr.r, hard = s.q != null && s.q <= Math.max(0, Math.floor(expQ(pr.p, pr.r)) - 3);
+    /* «тяжелее плана» — только отметка у предела (запас 0–1) там, где по таблице запас был на 3+ больше. Далеко от предела запас оценивается
+       неточно, и «3» или «4+» на лёгком подходе — не сигнал: раньше такие отметки срезали все следующие подходы на 5%. */
+    var miss = s.r != null && s.r < pr.r, hard = s.q != null && s.q <= Math.max(0, Math.min(1, Math.floor(expQ(pr.p, pr.r)) - 3));
     if(!(miss || hard) || pr.p > row.p + 1e-9) continue;
     if(miss && pr.p >= 90 && row.p >= 90){ res.skip = true; res.why = "подход " + (j + 1) + " не дошёл — тяжёлые подходы на сегодня закончены"; }
     else if(res.mult === 1){ res.mult = 0.95; res.why = "−5%: подход " + (j + 1) + " шёл тяжелее плана"; }
@@ -862,9 +954,10 @@ function rirGuide(open){
     "🟢 <b>4+</b> — все повторы одинаково быстрые. 🟢 <b>3</b> — последний чуть медленнее первого.",
     "🟡 <b>2</b> — последние 1–2 повтора заметно медленнее, техника та же. 🟠 <b>1</b> — последний «ползёт», но чистый.",
     "🔴 <b>0</b> — повтор встал или техника поплыла. В программе так не делаем: при грыже отказ под весом — лишний риск.",
-    "<b>Как приложение подстраивается.</b> После каждой жимовой тренировки оно сравнивает записанные подходы с планом. Тяжелее плана или недобор — максимум для расчёта снижается на 2,5–5 кг. Заметно легче — растёт на 2,5 кг, не больше чем на ступень за тренировку. Подсобка: вес на сегодня — из оценки максимума по прошлой записи; было легко — +1 шаг, недобор — вес не растёт. Внутри тренировки следующий подход поправляется по предыдущему.",
+    "<b>Как приложение подстраивается — жим лёжа.</b> Недобор повторов — максимум для расчёта −2,5…−5 кг. Запас 0–1 там, где по плану должно быть легко, — −2,5 кг. Тяжёлые подходы заметно легче плана — +2,5 кг, не больше ступени за тренировку. Отметки 2, 3 и 4+ на лёгких подходах ничего не меняют: далеко от предела запас оценивается неточно, это нормально.",
+    "<b>Подсобка.</b> Сделал по плану с запасом как в цели — вес тот же. Запас больше цели, больше повторов или сам взял больше — вес растёт. Запас меньше цели или недобор — снижается. Внутри тренировки следующий подход поправляется по предыдущему.",
     "<b>Отдых тоже подстраивается.</b> Отметил запас 0–1 или недобрал повторы — следующий отдых длиннее: +1 мин в базовых упражнениях, +30 с в изоляции и после пары суперсета.",
-    "Не отмечаешь запас — веса считаются по повторам, но точность ниже."
+    "Не отмечаешь запас — вес подсобки стоит на месте: растёт он от отметок «3» и «4+» или когда сам берёшь больше."
   ])], open);
 }
 
@@ -1405,7 +1498,7 @@ function accTable(t){
   for(var d = Math.min(N, t); d >= 1; d--){
     var day = DAYS[d - 1]; if(day.kind !== "gym") continue;
     itemsOf(day).forEach(function(it){ if(seen[it.ex] || ["acc","pct","dbpct","own","gv","sq"].indexOf(it.role) < 0) return; var ss = lastSessions(it.ex, t + 1, 1); if(!ss.length) return; seen[it.ex] = 1; var s = ss[0], x = s.sets.filter(function(q){ return q && q.done; })[0]; if(!x) return;
-      var E = it.role === "gv" ? null : sessE(s);
+      var E = it.role === "gv" ? null : it.role === "own" ? ownState(it.ex, t + 1).est : it.role === "sq" ? sessE(s) : exState(it.ex, t + 1).est;
       rows.push(h("tr", {}, [h("td", {text:nameOf(it)}), h("td", {class:"r", text:(toolOf(it) === "db" ? "2×" : "") + fkg(x.w) + " × " + (x.r != null ? x.r : "?")}), h("td", {class:"r", text:E ? fkg(Math.round(E)) : (toolOf(it) === "gv" ? "противовес" : "—")}), h("td", {class:"r", text:"д. " + s.d})])); });
   }
   if(!rows.length) return null;
@@ -1518,7 +1611,7 @@ function renderProfile(app){
       selectField("p-mode", "Как считать веса", P.mode, [["adapt", "Адаптивно"], ["strict", "Строго по гайду"]], function(v){ P.mode = v; save("settings"); render(true); }),
       selectField("p-feet", "Стопы в жиме", P.feet, [["floor", "На полу"], ["bench", "На скамье"]], function(v){ P.feet = v; save("settings"); render(true); })
     ])),
-    h("p", {class:"small", html:"Стопы на полу — ягодицы на скамье, без высокого моста; на скамье — моста нет совсем, это безопаснее для поясницы. Сейчас для расчёта: <b>" + fkg(tmAt(t).tm) + " кг</b>. <b>Адаптивно:</b> максимум гайда — стартовая точка; после каждой жимовой тренировки приложение сравнивает подходы с планом и поправляет его на 2,5–5 кг. <b>Строго по гайду:</b> как у Сарычева — весь гайд от одного максимума. Подсобка в обоих режимах считается по прошлой записи."}),
+    h("p", {class:"small", html:"Стопы на полу — ягодицы на скамье, без высокого моста; на скамье — моста нет совсем, это безопаснее для поясницы. Сейчас для расчёта: <b>" + fkg(tmAt(t).tm) + " кг</b>. <b>Адаптивно:</b> максимум гайда — стартовая точка; после каждой жимовой тренировки приложение сравнивает подходы с планом и поправляет его на 2,5–5 кг. <b>Строго по гайду:</b> как у Сарычева — весь гайд от одного максимума. Подсобка в обоих режимах считается по твоим записям."}),
     h("p", {class:"small muted", text:"Проходка — последний цикл гайда. Её результат сам становится максимумом следующего гайда, если поле выше пустое."})]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Присед в силовой А"}),
     h("div", {class:"fields"}, [selectField("p-squat", "Гайды 150 и 200", P.squat || "split", [["split", "Сплит-присед"], ["wide", "Широкий присед"]], function(v){ P.squat = v; save("settings"); render(true); })]),
@@ -1577,7 +1670,7 @@ function renderProfile(app){
     "<b>Силовая А</b> — День 1 гайда и тяги из Дня 2. <b>Силовая Б</b> — День 3, один жим из Дня 2 (до 4 подходов), упражнение на ноги или ягодицы и тяга с упором грудью — спина работает дважды за цикл. Жим и его вариации, тяги, трицепс и вся работа на бицепс и предплечья — как у Сарычева. Руки — в конце, парами с трицепсом или разводкой.",
     "<b>Кардио для сердца.</b> База — зона 2, прогулки и заминки после зала; с гайда 150 раз в цикл — интервалы 4 × 4. Жёлтый в день кардио — зона 2 вместо интервалов, красный — прогулка.",
     "<b>Замены ради спины.</b> Присед со штангой → сплит-присед с гантелями (или широкий присед на скамью — переключатель выше; или разгибание ног, как разрешает гайд), становая → ягодичный мост, румынская тяга → сгибание ног на фитболе, жим стоя → жим сидя со спинкой, тяги в наклоне → с упором грудью, гиперэкстензия → ягодичный мост, пресс → тройка Макгилла, брусья — в гравитроне. Почему — в карточке упражнения.",
-    "<b>Веса.</b> Жим — проценты гайда от максимума для расчёта. Вспомогательные жимы — по процентам, но не тяжелее «запаса 2» по твоей оценке. Подсобка — по оценке максимума из прошлой записи. Первый подход нового упражнения — проверочный.",
+    "<b>Веса.</b> Жим — проценты гайда от максимума для расчёта. Вспомогательные жимы — по процентам, но не тяжелее «запаса 2» по твоей оценке. Подсобка — по оценке максимума из твоих записей. Первый подход нового упражнения — проверочный.",
     "<b>Записывай вес, повторы и запас.</b> От запаса зависит, насколько точно приложение поймёт, как прошла тренировка.",
     "<b>Светофор</b> утром: жёлтый — веса −10% и без подходов от 90%, красный — восстановление вместо зала.",
     "<b>Пропустил тренировку</b> — на смену не переносим, идёшь дальше по плану. Пропустил неделю — повтори прошлый цикл."
@@ -1589,6 +1682,7 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Исправлен расчёт весов.</b> Подсобка без отметки запаса теряла вес от тренировки к тренировке: оценка каждый раз считалась от веса, уже округлённого вниз. Теперь вес держится, растёт от отметок «3» и «4+» и снижается только от запаса меньше цели или недобора. Ягодичный мост больше не легчает. Жимы по процентам (наклонный, сидя, узким и средним хватом) идут по гайду, а «лесенка» — с ростом веса от подхода к подходу. В жиме лёжа отметка запаса на лёгком подходе больше не срезает следующие подходы на 5% и не снижает максимум: вниз — только после недобора или запаса 0–1.",
     "<b>Ноги в силовой Б.</b> В гайдах 150 и 200 — суперсет «сгибание ног сидя + разгибание ног», 3 × 12 с запасом 2, перед руками: в гайдах ноги получали только сплит-присед, а задняя поверхность бедра — почти ничего. Сгибание ног теперь везде сидя: лёжа поясница прогибается. Силовая Б стала длиннее на 10–15 минут.",
     "<b>Широкий присед по кругам:</b> потолок 60 кг в первом круге гайда 150, 65 — во втором, 70 — с третьего.",
     "<b>Темп похудения — 0,3–0,5 кг в неделю.</b> Быстрее уходят уже и мышцы: при дефиците больше ~500 ккал в день мышцы перестают расти.",
