@@ -153,6 +153,11 @@ ul.plain{margin:0;padding-left:18px;display:grid;gap:5px}
 .ex-note{font-size:14px;background:var(--sunk);border-radius:8px;padding:8px 10px}
 .sugg{font-size:14px;border-left:3px solid var(--ok);padding:4px 0 4px 9px}
 .sugg b{font-size:16px}
+.cal{border:1px solid var(--line);border-left:3px solid var(--heavy);border-radius:10px;padding:10px 12px;margin:8px 0;display:grid;gap:8px;font-size:14px}
+.cal.done{border-left-color:var(--ok)}
+.cal p{margin:0}
+.calrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.calrow input{width:78px;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 6px;background:var(--bg);font-size:16px;font-variant-numeric:tabular-nums;text-align:center}
 .ex details{font-size:14px}
 .ex details summary{cursor:pointer;color:var(--muted);font-weight:700}
 .ex details > div{display:grid;gap:6px;margin-top:6px}
@@ -464,18 +469,45 @@ function guideBase(gi){
   var prev = tmState(gi - 1).end, pg = G[gi - 1];
   return {v:prev, why:(pg.len < pg.weeks ? "максимум на момент перехода с гайда " + pg.id : "проходки ещё нет — итог: " + pg.name)};
 }
+/* Контрольный подход: вес × повторы, остановка за один повтор до отказа → разовый максимум. Таблица P10, вниз до 2,5 кг;
+   с 6 повторов оценка грубее, поэтому ещё −2,5 кг, с 8 — −5 кг и повторы сверх 8 не учитываются. 100 кг: 3 → 110, 4 → 115, 5 → 117,5, 6 → 120, 7 → 122,5, 8+ → 125. */
+function calMax(w, r){ var n = Math.max(1, Math.min(8, Math.round(r))); return Math.max(0, floorTo(w * 100 / pctAt(n + 1), 2.5) - (n >= 8 ? 5 : n >= 6 ? 2.5 : 0)); }
+function calOf(d){ var r = S.days[key(d)], c = r && r.cal; return c && c.done && c.w > 0 && c.r >= 1 ? c : null; }
 function tmState(gi){
   var k = "tm" + gi; if(k in CACHE) return CACHE[k];
-  var base = guideBase(gi), tm = base.v, ev = [], rng = gDays(gi);
-  if(S.profile.mode !== "strict"){
-    for(var d = rng.from; d <= rng.to; d++){
-      var day = DAYS[d - 1], r = S.days[key(d)]; if(day.kind !== "gym" || !r || !r.sets) continue;
-      var v = benchVerdict(day, r, tm); if(!v) continue;
-      if(v.delta) tm = Math.round((tm + v.delta) * 100) / 100;
-      ev.push({d:d, delta:v.delta, after:tm, why:v.why});
+  var base = guideBase(gi), tm = base.v, ev = [], rng = gDays(gi), strict = S.profile.mode === "strict";
+  for(var d = rng.from; d <= rng.to; d++){
+    var day = DAYS[d - 1], r = S.days[key(d)]; if(day.kind !== "gym" || !r) continue;
+    var c = calOf(d);
+    if(c){ /* замер важнее оценок по запасу: со следующей тренировки максимум — по нему, в обоих режимах */
+      var cm = calMax(c.w, c.r); ev.push({d:d, delta:Math.round((cm - tm) * 100) / 100, after:cm, why:"контрольный подход " + fkg(c.w) + " кг × " + c.r, cal:true}); tm = cm; continue;
     }
+    if(strict || !r.sets) continue;
+    var v = benchVerdict(day, r, tm); if(!v) continue;
+    if(v.delta) tm = Math.round((tm + v.delta) * 100) / 100;
+    ev.push({d:d, delta:v.delta, after:tm, why:v.why});
   }
   return (CACHE[k] = {base:base, ev:ev, end:tm});
+}
+/* нужен ли контрольный подход: максимум ещё не измерен (ни проходки, ни контрольного подхода раньше дня d) или его назначили в профиле */
+function calNeeded(d){
+  var P = S.profile; if(P.calOff) return false; if(P.calAsk) return true;
+  for(var x = 1; x < d; x++) if(calOf(x)) return false;
+  for(var gi = 0; gi <= DAYS[d - 1].g; gi++){ var ti = testInfo(gi); if(ti && ti.d < d) return false; }
+  return true;
+}
+function benchIdx(day){ var items = itemsOf(day); for(var i = 0; i < items.length; i++) if(items[i].role === "main" && items[i].ex === "bench" && !items[i].dl) return i; return -1; }
+/* ближайшая подходящая силовая, начиная с сегодня: с жимом, не проходка и не разгрузка, не жёлтый и не красный день, жим ещё не начат */
+function calDay(){
+  var t = todayIdx(); if(!t) return null;
+  for(var d = t; d <= Math.min(N, t + 24); d++){
+    var day = DAYS[d - 1]; if(day.kind !== "gym" || day.test || day.deload) continue;
+    var bi = benchIdx(day); if(bi < 0) continue;
+    var r = S.days[key(d)] || {}; if(r.calSkip || r.color === "y" || r.color === "r") continue;
+    if(calOf(d) || ((r.sets || {})[setKey(itemsOf(day)[bi], bi)] || []).some(function(x){ return x && x.done; })) continue;
+    return calNeeded(d) ? d : null;
+  }
+  return null;
 }
 function tmAt(d){
   var day = DAYS[d - 1], st = tmState(day.g), tm = st.base.v, log = [];
@@ -965,10 +997,47 @@ function rirGuide(open){
 var WD = ["вс","пн","вт","ср","чт","пт","сб"], MON = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
 function parseISO(s){ if(!/^\d{4}-\d{2}-\d{2}$/.test(s || "")) return null; var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
 function startDate(){ return parseISO(S.profile.start); }
-function dateOf(d){ var s = startDate(); if(!s) return null; var x = new Date(s); x.setDate(x.getDate() + d - 1); return x; }
+/* Сдвиги плана (Профиль → Программа): {at, n} — с дня плана at всё едет на n календарных дней позже. Пропущенные тренировки не теряются,
+   а записи до сдвига остаются на своих датах. */
+function gapList(){ var g = S.profile.gaps; return Array.isArray(g) ? g.filter(function(x){ return x && x.n > 0 && x.at >= 1; }).sort(function(a, b){ return a.at - b.at; }) : []; }
+function gapsBefore(d){ var a = 0; gapList().forEach(function(x){ if(x.at <= d) a += x.n; }); return a; }
+function dateOf(d){ var s = startDate(); if(!s) return null; var x = new Date(s); x.setDate(x.getDate() + d - 1 + gapsBefore(d)); return x; }
 function fmtDate(x, long){ if(!x) return ""; return (long ? WD[x.getDay()] + ", " : "") + x.getDate() + " " + MON[x.getMonth()]; }
 function iso(x){ return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); }
-function dayNum(){ var s = startDate(); if(!s) return null; var t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((t - s) / 864e5) + 1; }
+function dayNum(){
+  var s = startDate(); if(!s) return null; var t = new Date(); t.setHours(0, 0, 0, 0);
+  var c = Math.round((t - s) / 864e5) + 1, acc = 0, g = gapList();
+  for(var i = 0; i < g.length; i++){ var st = g[i].at + acc; if(c < st) break; if(c < st + g[i].n) return g[i].at; acc += g[i].n; }
+  return c - acc;
+}
+/* сдвинуть план: сегодня становится тем днём плана, который был n дней назад */
+function shiftPlan(n){
+  var s = startDate(), t = dayNum(); if(!s || t == null) return false;
+  var now = new Date(); now.setHours(0, 0, 0, 0);
+  var c = Math.round((now - s) / 864e5) + 1, at = Math.max(1, t - n), old = gapList();
+  /* сдвиги, начинавшиеся позже нового места, поглощаются: день at должен прийтись ровно на сегодня */
+  var g = old.filter(function(x){ return x.at <= at; }), before = g.reduce(function(a, x){ return a + x.n; }, 0), nn = c - at - before;
+  if(!(nn > 0)) return false;
+  (S.profile.gapUndo = S.profile.gapUndo || []).push(old);
+  g.push({at:at, n:nn, t:Date.now()});
+  S.profile.gaps = g; save("settings"); var x = todayIdx(); if(x) UI.day = x; return true;
+}
+function unshiftPlan(){
+  var u = S.profile.gapUndo; if(!gapList().length) return false;
+  S.profile.gaps = u && u.length ? u.pop() : [];
+  save("settings"); var x = todayIdx(); if(x) UI.day = x; return true;
+}
+function dayTouched(d){ var r = S.days[key(d)]; return !!(r && (r.done || Object.keys(r.sets || {}).some(function(k){ return (r.sets[k] || []).some(function(x){ return x && x.done; }); }))); }
+/* последние силовые перед сегодняшним днём, которые не отмечены: [{d, day}] — от ближней к дальней, не дальше 8 дней */
+function missedGym(){
+  var t = todayIdx(), out = []; if(!t) return out;
+  for(var d = t - 1; d >= Math.max(1, t - 8); d--){
+    var day = DAYS[d - 1]; if(day.kind !== "gym") continue;
+    var r = S.days[key(d)] || {}; if(dayTouched(d) || r.skip) break;
+    out.push({d:d, day:day});
+  }
+  return out;
+}
 function todayIdx(){ var n = dayNum(); return (n != null && n >= 1 && n <= N) ? n : null; }
 function isoToday(){ return iso(new Date()); }
 /* график из версии 5: «День 1» там — первая смена; выходной 1 = +2 дня, цикл 2/2 повторяется каждые 4 дня */
@@ -1022,6 +1091,16 @@ function renderDayTab(app){
       h("p", {class:"small", html:"<b>Теперь гайд 150 по кругу</b> — " + (S.profile.plan.rounds || 3) + " круга с цикла " + S.profile.plan.from + (pd ? ", силовая А " + fmtDate(pd, true) : "") +
         ". Веса — от твоего максимума для расчёта на момент перехода; после каждой проходки — от нового. Кардио первые 4 цикла — спокойная зона 2, интервалы 4 × 4 — с 5-го. Сколько кругов и как вернуть гайды 100 → 150 → 200 — в профиле, раздел «Программа»."}),
       h("button", {type:"button", class:"btn ghost sm", text:"Понятно", onclick:function(){ S.profile.planNote = 0; save("settings"); render(true); }})]));
+  }
+  var miss = t && UI.day === t ? missedGym() : [];
+  if(miss.length){
+    var mN = miss.length > 1 ? 8 : 4, m0 = miss[miss.length - 1];
+    app.appendChild(h("div", {class:"card alert", style:"margin-top:10px"}, [
+      h("p", {class:"small", html:"<b>" + (miss.length > 1 ? "Две силовые подряд не отмечены" : (m0.day.gd === "a" ? "Силовая А" : "Силовая Б") + " (" + fmtDate(dateOf(m0.d), true) + ") не отмечена") + ".</b> Пропустил — не теряй её: сдвинь план на " + mN +
+        " дн., и она встанет на ближайший выходной, а всё остальное подвинется следом. Записи остаются на своих датах." + (miss.length > 1 ? " После перерыва первую тренировку начни с жёлтого дня (веса −10%)." : "")}),
+      h("div", {class:"row"}, [
+        h("button", {type:"button", class:"btn sm", text:"Сдвинуть план на " + mN + " дн.", onclick:function(){ shiftPlan(mN); render(true); toast("План сдвинут на " + mN + " дн."); }}),
+        h("button", {type:"button", class:"btn ghost sm", text:"Не переносить", onclick:function(){ miss.forEach(function(x){ rec(x.d).skip = 1; save(key(x.d)); }); render(true); }})])]));
   }
   var n = dayNum();
   if(n != null && n < 1) app.appendChild(h("div", {class:"card", style:"margin-top:10px"}, [h("p", {class:"small", text:"До старта " + (1 - n) + " дн. Пока — прогулки, тройка Макгилла по вечерам и сон."})]));
@@ -1088,7 +1167,7 @@ function renderDay(day){
     if(hasBench){
       var last = T0.log[T0.log.length - 1];
       top.push(h("div", {class:"tmline"}, [h("span", {class:"small muted", text:"Максимум жима для расчёта"}), h("b", {text:fkg(T0.tm) + " кг"}),
-        h("span", {class:"small muted", text:(T0.base.v === T0.tm ? T0.base.why : "старт " + fkg(T0.base.v) + " (" + T0.base.why + ")" + (last ? ", последняя поправка — день " + last.d : "")) + (S.profile.mode === "strict" ? " · строго по гайду" : "")})]));
+        h("span", {class:"small muted", text:(T0.base.v === T0.tm ? T0.base.why : "старт " + fkg(T0.base.v) + " (" + T0.base.why + ")" + (last ? (last.cal ? ", контрольный подход — день " : ", последняя поправка — день ") + last.d : "")) + (S.profile.mode === "strict" ? " · строго по гайду" : "")})]));
     }
     var startBtn = h("button", {type:"button", class:"btn big", text:r.done ? "День отмечен ✓" : "Начать тренировку", onclick:function(){
       touch(); var el = document.getElementById("sec-warm") || document.getElementById("sec-ex"); if(el){ if(el.tagName === "DETAILS") el.open = true; el.scrollIntoView({block:"start", behavior:"smooth"}); }
@@ -1196,6 +1275,7 @@ function exCard(day, it, idx){
   if(it.rest && !it.ss && !startsPairOf(day, idx)) card.appendChild(h("div", {class:"ex-rest", text:restText(day, it, idx)}));
   if(it.role === "note"){ card.appendChild(h("p", {class:"small", text:e.how || ""})); return card; }
   if(it.role === "core"){ card.appendChild(coreBlock(day, it, idx)); card.appendChild(h("details", {}, [h("summary", {text:"Почему вместо пресса"}), h("div", {}, [h("p", {text:it.why || ""})])])); return card; }
+  if(isMain && it.ex === "bench" && it.role === "main" && benchIdx(day) === idx){ var cb = calBlock(day, it, idx); if(cb) card.appendChild(cb); }
   var allDone = rows.every(function(_, i){ return arr[i] && arr[i].done; });
   var s0 = allDone ? null : suggest(day, it, idx, firstOpen(arr, rows));
   if(s0 && s0.w != null) card.appendChild(h("div", {class:"sugg"}, [h("span", {text:"Вес сейчас: "}), h("b", {text:(tool === "db" ? "2 × " : "") + fkg(s0.w) + " кг" + (tool === "gv" ? " противовеса" : "")}), h("div", {class:"hint", text:s0.why})]));
@@ -1217,6 +1297,43 @@ function exCard(day, it, idx){
   if(it.why) tech.push(h("p", {}, [h("b", {text:"Почему замена. "}), it.why]));
   if(tech.length) card.appendChild(h("details", {}, [h("summary", {text:it.why ? "Как делать и почему замена" : "Как делать"}), h("div", {}, tech)]));
   return card;
+}
+/* контрольный подход в карточке жима: предложение (на ближайшей подходящей силовой) или результат */
+function calBlock(day, it, idx){
+  var r = rec(day.d), c = calOf(day.d), P = S.profile;
+  if(c){
+    var cm = calMax(c.w, c.r), rough = c.r >= 8 || c.r <= 2, again = nearest(cm * 0.88, 2.5);
+    return h("div", {class:"cal done"}, [
+      h("div", {html:"<b>Контрольный подход:</b> " + fkg(c.w) + " кг × " + c.r + " → максимум <b>" + fkg(cm) + " кг</b>"}),
+      h("div", {class:"hint", text:"Со следующей тренировки веса жима считаются от него. Сегодня — по плану, от прежнего максимума." + (rough ? (c.r >= 8 ? " Вес оказался лёгким" : " Вес оказался тяжёлым") + " — оценка грубая: точнее выйдет с " + fkg(again) + " кг." : "")}),
+      h("div", {class:"row"}, [rough && !P.calAsk ? h("button", {type:"button", class:"btn ghost sm", text:"Повторить на следующей силовой", onclick:function(){ P.calAsk = 1; P.calOff = 0; save("settings"); render(true); toast("Предложу на следующей силовой с жимом"); }}) : null,
+        h("button", {type:"button", class:"btn ghost sm", text:"Отменить", onclick:function(){ delete r.cal; save(key(day.d)); render(true); }})])]);
+  }
+  if(calDay() !== day.d) return null;
+  /* вес — около 91% максимума; если в профиле для следующего этапа вписан максимум больше нынешнего, ориентир — он */
+  var tm = tmAt(day.d).tm, nxG = G[day.g + 1], hintM = nxG ? pnum(P["max" + (nxG.key || nxG.id)]) : null, w0 = nearest(Math.max(tm, hintM || 0) * 0.91, 2.5);
+  var wI = h("input", {type:"text", inputmode:"decimal", id:"cal-w", "aria-label":"Вес контрольного подхода, кг"}), rI = h("input", {type:"text", inputmode:"numeric", id:"cal-r", placeholder:"повт.", "aria-label":"Повторы контрольного подхода"}); wI.value = fkg(w0);
+  var warm = function(){ var w = pnum(wI.value) || w0; return fkg(nearest(w * 0.5, 2.5)) + " × 5, " + fkg(nearest(w * 0.7, 2.5)) + " × 3, " + fkg(nearest(w * 0.85, 2.5)) + " × 1"; };
+  var warmEl = h("span", {text:warm()}); wI.addEventListener("input", function(){ warmEl.textContent = warm(); });
+  return h("div", {class:"cal"}, [
+    h("div", {html:"<b>Контрольный подход — узнать настоящий максимум</b>"}),
+    h("p", {class:"small", html:"Сейчас максимум " + fkg(tm) + " кг — оценка, а от него считаются все веса жима. Один подход покажет точнее. Первым делом после разминки" + (idx > 0 ? ", до остальных упражнений," : "") + " возьми <b>" + fkg(w0) + " кг</b> и сделай столько повторов, сколько можешь, — остановись <b>за один до отказа</b>, когда следующий повтор уже под вопросом. Со страхующим, таз на скамье, без дожимов."}),
+    h("p", {class:"small muted"}, ["Подводящие: ", warmEl, ", потом отдых 3 мин. Нужно, чтобы вышло 3–6 повторов: знаешь, что этот вес не тот, — впиши свой."]),
+    h("div", {class:"calrow"}, [h("label", {class:"small muted", for:"cal-w", text:"кг"}), wI, h("label", {class:"small muted", for:"cal-r", text:"×"}), rI,
+      h("button", {type:"button", class:"btn sm", text:"Готово", onclick:function(){
+        var w = pnum(wI.value), n = pnum(rI.value); if(!(w > 0) || !(n >= 1)){ toast("Впиши вес и сколько повторов вышло"); return; }
+        n = Math.round(n); r.cal = {w:w, r:n, done:true, t:Date.now()}; P.calAsk = 0;
+        /* следующий этап после неполного гайда считался бы от числа, вписанного в профиль раньше, — замер новее */
+        var g = G[day.g], nx = G[day.g + 1], nk = nx ? "max" + (nx.key || nx.id) : null, msg = "Максимум " + fkg(calMax(w, n)) + " кг — со следующей тренировки";
+        if(nx && g.len < g.weeks && pnum(P[nk])){ P[nk] = ""; msg += ". «" + nx.name + "» теперь считается от него"; }
+        save(key(day.d)); save("settings"); touch();
+        var fo = firstOpen(r.sets[setKey(it, idx)] || [], allRows(day, it, idx));
+        startRest(300, "Контрольный подход", nextLine(day, it, idx, fo), {head:"Отдых", why:"после контрольного подхода — 5 мин"});
+        render(true); toast(msg);
+      }})]),
+    h("div", {class:"row"}, [
+      h("button", {type:"button", class:"btn ghost sm", text:"Не сегодня", onclick:function(){ r.calSkip = 1; save(key(day.d)); render(true); toast("Предложу на следующей силовой с жимом"); }}),
+      h("button", {type:"button", class:"btn ghost sm", text:"Не нужно — максимум верный", onclick:function(){ P.calOff = 1; P.calAsk = 0; save("settings"); render(true); toast("Вернуть можно в профиле — «Максимум в жиме лёжа»"); }})])]);
 }
 function startsPairOf(day, idx){ var items = itemsOf(day); return items[idx + 1] && items[idx + 1].ss; }
 function firstOpen(arr, rows){ for(var i = 0; i < rows.length; i++){ if(!arr[i] || !arr[i].done) return i; } return Math.max(0, rows.length - 1); }
@@ -1570,6 +1687,21 @@ var RED_FLAGS = [
   "<b>Немедленно прекратить нагрузку:</b> давящая боль в груди, необычная одышка, перебои в сердце, головокружение или предобморочное состояние.",
   "<b>Боль во время упражнения:</b> 0–2 из 10 — продолжаем; 3–4 — меньше вес или амплитуда; 5 и выше — упражнение прекращаем."
 ];
+/* профиль: контрольный подход — последний результат, когда будет предложен, назначить или убрать */
+function calProfile(){
+  var P = S.profile, last = null, t = todayIdx() || N;
+  for(var d = Math.min(N, t); d >= 1 && !last; d--){ var c = calOf(d); if(c) last = {d:d, c:c}; }
+  var cd = calDay(), kids = [h("div", {html:"<b>Контрольный подход</b> — один подход на максимум повторов за один до отказа: по нему приложение ставит настоящий максимум."})];
+  if(last) kids.push(h("div", {class:"hint", text:"Последний: день " + last.d + (dateOf(last.d) ? " (" + fmtDate(dateOf(last.d)) + ")" : "") + " — " + fkg(last.c.w) + " кг × " + last.c.r + " → " + fkg(calMax(last.c.w, last.c.r)) + " кг."}));
+  if(cd){
+    kids.push(h("div", {class:"hint", text:"Предложу в карточке жима на силовой " + fmtDate(dateOf(cd), true) + "."}));
+    kids.push(h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Не предлагать", onclick:function(){ P.calOff = 1; P.calAsk = 0; save("settings"); render(true); }})]));
+  } else {
+    kids.push(h("div", {class:"hint", text:P.calOff ? "Сейчас не предлагается." : "Максимум уже измерен — контрольным подходом или проходкой. Сомневаешься в нём — назначь ещё раз."}));
+    kids.push(h("div", {class:"row"}, [h("button", {type:"button", class:"btn ghost sm", text:"Назначить на ближайшую силовую", onclick:function(){ P.calAsk = 1; P.calOff = 0; save("settings"); render(true); var x = calDay(); toast(x ? "Предложу " + fmtDate(dateOf(x), true) : "Предложу на ближайшей силовой с жимом"); }})]));
+  }
+  return h("div", {class:"cal done"}, kids);
+}
 /* программа: гайды 100 → 150 → 200 или гайд 150 по кругу */
 function planCard(){
   var P = S.profile, plan = P.plan && P.plan.type === "150" ? P.plan : null;
@@ -1590,6 +1722,14 @@ function planCard(){
       var f = nearestA(); P.plan = {type:"150", from:f, rounds:3}; P.planNote = 1; save("settings"); applyPlan(); var x = todayIdx(); if(x) UI.day = x; render(true); toast("Гайд 150 по кругу — с цикла " + f);
     }}));
   }
+  /* пропуски: план не идёт дальше без тебя */
+  var gl = gapList(), tot = gl.reduce(function(a, x){ return a + x.n; }, 0);
+  card.appendChild(h("p", {class:"small", style:"margin-top:10px", html:"<b>Пропустил тренировки?</b> Сдвинь план, и пропущенное встанет на ближайшие выходные, а всё остальное подвинется следом. Одна силовая — на 4 дня, целый цикл (болезнь, отпуск) — на 8. Записи остаются на своих датах. После перерыва дольше двух недель первую тренировку начни с жёлтого дня." +
+    (tot ? " Сейчас план сдвинут всего на " + tot + " дн." : "")}));
+  card.appendChild(h("div", {class:"row"}, [
+    h("button", {type:"button", class:"btn ghost sm", text:"Сдвинуть на 4 дня", onclick:function(){ if(shiftPlan(4)){ render(true); toast("План сдвинут на 4 дня"); } else toast("Сначала укажи дату старта"); }}),
+    h("button", {type:"button", class:"btn ghost sm", text:"Сдвинуть на 8 дней", onclick:function(){ if(shiftPlan(8)){ render(true); toast("План сдвинут на 8 дней"); } else toast("Сначала укажи дату старта"); }}),
+    gl.length ? h("button", {type:"button", class:"btn ghost sm", text:"Отменить последний сдвиг", onclick:function(){ unshiftPlan(); render(true); toast("Сдвиг отменён"); }}) : null]));
   return card;
 }
 function renderProfile(app){
@@ -1612,7 +1752,8 @@ function renderProfile(app){
       selectField("p-feet", "Стопы в жиме", P.feet, [["floor", "На полу"], ["bench", "На скамье"]], function(v){ P.feet = v; save("settings"); render(true); })
     ])),
     h("p", {class:"small", html:"Стопы на полу — ягодицы на скамье, без высокого моста; на скамье — моста нет совсем, это безопаснее для поясницы. Сейчас для расчёта: <b>" + fkg(tmAt(t).tm) + " кг</b>. <b>Адаптивно:</b> максимум гайда — стартовая точка; после каждой жимовой тренировки приложение сравнивает подходы с планом и поправляет его на 2,5–5 кг. <b>Строго по гайду:</b> как у Сарычева — весь гайд от одного максимума. Подсобка в обоих режимах считается по твоим записям."}),
-    h("p", {class:"small muted", text:"Проходка — последний цикл гайда. Её результат сам становится максимумом следующего гайда, если поле выше пустое."})]));
+    h("p", {class:"small muted", text:"Проходка — последний цикл гайда. Её результат сам становится максимумом следующего гайда, если поле выше пустое."}),
+    calProfile()]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Присед в силовой А"}),
     h("div", {class:"fields"}, [selectField("p-squat", "Гайды 150 и 200", P.squat || "split", [["split", "Сплит-присед"], ["wide", "Широкий присед"]], function(v){ P.squat = v; save("settings"); render(true); })]),
     h("p", {class:"small", html:"<b>Широкий присед</b> — на скамью высотой до колена; гриф специальный для приседа или низко на трапециях, не на шее. Вес: старт 40 кг, +2,5 кг за цикл, если все повторы шли с запасом 3+; потолок 60 кг в гайде 150 и 70 кг в гайде 200; в гайде 150 по кругу — 60, 65 и 70 кг по кругам."}),
@@ -1673,7 +1814,7 @@ function renderProfile(app){
     "<b>Веса.</b> Жим — проценты гайда от максимума для расчёта. Вспомогательные жимы — по процентам, но не тяжелее «запаса 2» по твоей оценке. Подсобка — по оценке максимума из твоих записей. Первый подход нового упражнения — проверочный.",
     "<b>Записывай вес, повторы и запас.</b> От запаса зависит, насколько точно приложение поймёт, как прошла тренировка.",
     "<b>Светофор</b> утром: жёлтый — веса −10% и без подходов от 90%, красный — восстановление вместо зала.",
-    "<b>Пропустил тренировку</b> — на смену не переносим, идёшь дальше по плану. Пропустил неделю — повтори прошлый цикл."
+    "<b>Пропустил тренировку</b> — на смену не переносим. Сдвинь план на 4 дня (одна силовая) или на 8 (целый цикл): Профиль → «Программа»."
   ]), rirGuide(false)]));
   panel.appendChild(h("div", {class:"card"}, [h("h3", {text:"Что нового в версии 6.1"}), plain([
     "<b>Две силовые за цикл вместо трёх.</b> А — первый выходной, Б — третий. Между силовыми всегда три дня, а перед каждой парой смен — лёгкий день: кардио или восстановление.",
@@ -1682,6 +1823,8 @@ function renderProfile(app){
     "<b>Больше спины и плеч:</b> в силовой Б — тяга с упором грудью, так спина работает дважды за цикл. В разминке и в выходные без зала — жгут: разведение рук, тяга к лицу и наружная ротация для задней дельты и вращательной манжеты.",
     "<b>Кардио для сердца:</b> зона 2 и прогулки, с гайда 150 раз в цикл интервалы 4 × 4, светофор в день кардио, счётчик «Сердце за цикл».",
     "<b>Широкий присед</b> — по желанию, переключатель выше.",
+    "<b>Контрольный подход.</b> Пока максимум не измерен, на ближайшей силовой в карточке жима появится контрольный подход: один подход на максимум повторов, за один до отказа. По нему приложение само ставит максимум — со следующей тренировки все веса жима считаются от него. Назначить ещё раз или убрать — в профиле, «Максимум в жиме лёжа».",
+    "<b>Сдвиг плана.</b> Пропустил силовую или целый цикл — сдвинь план на 4 или 8 дней (Профиль → «Программа» или кнопка на экране дня): пропущенное не теряется, а встаёт на ближайшие выходные.",
     "<b>Исправлен расчёт весов.</b> Подсобка без отметки запаса теряла вес от тренировки к тренировке: оценка каждый раз считалась от веса, уже округлённого вниз. Теперь вес держится, растёт от отметок «3» и «4+» и снижается только от запаса меньше цели или недобора. Ягодичный мост больше не легчает. Жимы по процентам (наклонный, сидя, узким и средним хватом) идут по гайду, а «лесенка» — с ростом веса от подхода к подходу. В жиме лёжа отметка запаса на лёгком подходе больше не срезает следующие подходы на 5% и не снижает максимум: вниз — только после недобора или запаса 0–1.",
     "<b>Ноги в силовой Б.</b> В гайдах 150 и 200 — суперсет «сгибание ног сидя + разгибание ног», 3 × 12 с запасом 2, перед руками: в гайдах ноги получали только сплит-присед, а задняя поверхность бедра — почти ничего. Сгибание ног теперь везде сидя: лёжа поясница прогибается. Силовая Б стала длиннее на 10–15 минут.",
     "<b>Широкий присед по кругам:</b> потолок 60 кг в первом круге гайда 150, 65 — во втором, 70 — с третьего.",
